@@ -203,6 +203,45 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--glass-2)}
   .tbl td:first-child::before{content:none}
 }
 body.ro [data-act=new-payment],body.ro [data-act=edit-payment],body.ro [data-act=pay-now],body.ro [data-act=new-factory],body.ro [data-act=edit-factory],body.ro [data-act=new-carrier],body.ro [data-act=edit-carrier],body.ro [data-act=del-ask],body.ro [data-act=demo-load],body.ro [data-act=demo-clear],body.ro [data-act=pick-restore]{display:none!important}
+
+/* ---------- motion: smooth, fast transitions (transform/opacity only) ---------- */
+:root{--ease-out:cubic-bezier(.2,.8,.2,1);--ease-in:cubic-bezier(.4,0,1,1)}
+.btn,.icon,.nav,.sheetbtn,tr.click{transition:background-color .18s var(--ease-out),color .18s var(--ease-out),filter .18s var(--ease-out),transform .12s var(--ease-out),box-shadow .18s var(--ease-out)}
+.btn:active,.icon:active,.nav:active,.sheetbtn:active{transform:scale(.96)}
+.card{transition:transform .2s var(--ease-out),border-color .2s var(--ease-out)}
+/* page switch: View Transitions (Chrome/Edge/Safari 18+) */
+#view{view-transition-name:pageview}
+::view-transition-old(pageview){animation:vt-out .14s var(--ease-in) both}
+::view-transition-new(pageview){animation:vt-in .24s var(--ease-out) both}
+@keyframes vt-out{to{opacity:0;transform:translateY(-6px)}}
+@keyframes vt-in{from{opacity:0;transform:translateY(10px)}}
+/* page switch fallback for older browsers */
+#view.enter>*{animation:vt-in .26s var(--ease-out) both}
+#view.enter>*:nth-child(2){animation-delay:.03s}#view.enter>*:nth-child(3){animation-delay:.06s}#view.enter>*:nth-child(4){animation-delay:.09s}
+/* modal: fade backdrop + pop panel; bottom sheet slides up on phones */
+.ovl{animation:ovl-in .2s var(--ease-out) both}
+.ovl>.modal{animation:modal-in .24s var(--ease-out) both}
+.ovl.out{animation:ovl-out .16s var(--ease-in) both;pointer-events:none}
+.ovl.out>.modal{animation:modal-out .16s var(--ease-in) both}
+@keyframes ovl-in{from{opacity:0}}@keyframes ovl-out{to{opacity:0}}
+@keyframes modal-in{from{opacity:0;transform:translateY(12px) scale(.97)}}
+@keyframes modal-out{to{opacity:0;transform:translateY(8px) scale(.98)}}
+.ovl.moresheet>.sheet{animation:sheet-in .26s var(--ease-out) both}
+@keyframes sheet-in{from{transform:translateY(24px);opacity:0}}
+@media (max-width:860px){
+  .ovl>.modal{animation-name:sheet-up}.ovl.out>.modal{animation-name:sheet-down}
+  @keyframes sheet-up{from{transform:translateY(100%)}}
+  @keyframes sheet-down{to{transform:translateY(100%)}}
+}
+/* toast */
+.toast{animation:toast-in .24s var(--ease-out) both}
+.toast.out{animation:toast-out .18s var(--ease-in) both}
+@keyframes toast-in{from{opacity:0;transform:translateY(12px) scale(.96)}}
+@keyframes toast-out{to{opacity:0;transform:translateY(8px)}}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}
+  ::view-transition-old(pageview),::view-transition-new(pageview){animation:none!important}
+}
 </style>
 </head><body>
 
@@ -368,7 +407,8 @@ const ICONS={
 };
 const ico=(n,s=18)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]}</svg>`;
 let toastT;
-function toast(msg,kind){const old=$('.toast');if(old)old.remove();const t=document.createElement('div');t.className='toast '+(kind||'');t.setAttribute('role','status');t.textContent=msg;document.body.appendChild(t);clearTimeout(toastT);toastT=setTimeout(()=>t.remove(),3200)}
+function RM(){try{return matchMedia('(prefers-reduced-motion: reduce)').matches}catch(e){return true}}
+function toast(msg,kind){const old=$('.toast');if(old)old.remove();const t=document.createElement('div');t.className='toast '+(kind||'');t.setAttribute('role','status');t.textContent=msg;document.body.appendChild(t);clearTimeout(toastT);toastT=setTimeout(()=>{if(RM()){t.remove();return}t.classList.add('out');setTimeout(()=>t.remove(),200)},3200)}
 
 /* ---------- data layer ---------- */
 const COLS=['factories','orders','payments','carriers','shipments'];
@@ -470,13 +510,15 @@ const ferr=(msg,field)=>{const e=$('#ferr');if(e){e.textContent=msg;e.hidden=fal
 /* ---------- modal ---------- */
 const M={el:null,refresh:null,back:null};
 let lastFocus=null;
-function closeModal(skipBack){
-  if(M.el){M.el.remove();M.el=null;if(!skipBack&&lastFocus&&lastFocus.isConnected&&lastFocus.focus)try{lastFocus.focus()}catch(e){}}
+function closeModal(skipBack,instant){
+  if(M.el){const el=M.el;M.el=null;
+    if(instant||RM()||!el.isConnected)el.remove();else{el.classList.add('out');let done=false;const fin=()=>{if(!done){done=true;el.remove()}};el.addEventListener('animationend',e=>{if(e.target===el)fin()});setTimeout(fin,260)}
+    if(!skipBack&&lastFocus&&lastFocus.isConnected&&lastFocus.focus)try{lastFocus.focus()}catch(e){}}
   M.refresh=null;const b=M.back;M.back=null;
   if(!skipBack&&b)b();
 }
 function openModal(title,body,o){
-  o=o||{};if(!M.el)lastFocus=document.activeElement;closeModal(true);
+  o=o||{};if(!M.el)lastFocus=document.activeElement;closeModal(true,true);
   const el=document.createElement('div');el.className='ovl';
   const del=o.del?`<button type="button" class="btn ghost" data-act="del-ask" data-col="${o.del[0]}" data-id="${o.del[1]}" style="margin-inline-end:auto">${ico('trash',16)} حذف</button>`:'';
   el.innerHTML=`<div class="modal ${o.wide?'wide':''}" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="mh"><h2>${esc(title)}</h2><button class="icon" type="button" data-act="close" aria-label="إغلاق">${ico('x')}</button></div><form class="mb" id="mform" novalidate>${body}${o.onSubmit?`<div class="hint bad" id="ferr" role="alert" hidden></div><div class="mf">${del}<button type="button" class="btn ghost" data-act="close">إلغاء</button><button class="btn" type="submit" id="msave">${o.submitText||'حفظ'}</button></div>`:''}</form></div>`;
@@ -976,7 +1018,11 @@ const ADD={orders:['طلب جديد','new-order'],payments:['دفعة جديدة
 let cur='home';
 try{const h=location.hash.slice(1);if(NAV.some(n=>n[0]===h))cur=h}catch(e){}
 const navList=()=>NAV.filter(n=>n[0]!=='users'||ADMIN);
-function go(v){cur=v;try{history.replaceState(null,'','#'+v)}catch(e){}render();window.scrollTo(0,0)}
+function go(v){const same=v===cur;cur=v;try{history.replaceState(null,'','#'+v)}catch(e){}
+  const swap=()=>{render();window.scrollTo(0,0)};
+  if(same||RM()){swap();return}
+  if(document.startViewTransition){document.startViewTransition(swap);return}
+  swap();const w=$('#view');if(w){w.classList.remove('enter');void w.offsetWidth;w.classList.add('enter');clearTimeout(go.t);go.t=setTimeout(()=>w.classList.remove('enter'),450)}}
 function greet(){const h=new Date().getHours();return h<12?'صباح الخير':h<18?'مرحباً':'مساء الخير'}
 const MAIN=['home','orders','payments','shipments'];
 function shell(){
