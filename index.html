@@ -224,7 +224,7 @@ body.ro [data-act=new-payment],body.ro [data-act=edit-payment],body.ro [data-act
 /* ---------- Supabase backend: replaces the claude.ai runtime (db / user / downloads) ---------- */
 const SB_URL='https://rokzlovdtnmnopgdxadq.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJva3psb3ZkdG5tbm9wZ2R4YWRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1NDUzODgsImV4cCI6MjEwNDEyMTM4OH0.A6w7orxxTUToNe88mcLzGgDgiOCSu7cESV_Kpkr9jBM';
 const sb=window.supabase.createClient(SB_URL,SB_KEY);
-const SB_ACCOUNTS=['admin@azawi.app','staff@azawi.app'];
+
 let SB_USER=null,SB_ROLE=null,SB_NAME='';
 const genId=()=>{const a='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',r=crypto.getRandomValues(new Uint8Array(20));return [...r].map(x=>a[x%62]).join('')};
 const sbErr=e=>{const x=new Error((e&&e.message)||'db_error');x.code=e&&e.code;return x};
@@ -312,11 +312,11 @@ function authScreen(msg,mode){
     if(!pin){show('اكتب رمز الدخول',true);return}
     b.disabled=true;
     try{
-      for(const email of SB_ACCOUNTS){
-        const {error}=await sb.auth.signInWithPassword({email,password:pin});
-        if(!error){location.reload();return}
-        if(!/invalid/i.test(error.message))throw error;
-      }
+      const r=await fetch(SB_URL+'/functions/v1/pin-login',{method:'POST',headers:{'Content-Type':'application/json',apikey:SB_KEY,Authorization:'Bearer '+SB_KEY},body:JSON.stringify({pin})});
+      const d=await r.json().catch(()=>({}));
+      if(r.ok&&d.access_token){const {error}=await sb.auth.setSession({access_token:d.access_token,refresh_token:d.refresh_token});if(error)throw error;location.reload();return}
+      if(r.status===429)throw new Error('rate');
+      if(r.status!==401&&r.status!==400)throw new Error('تعذر الاتصال بالخادم');
       show('الرمز غير صحيح',true);f.pin.value='';f.pin.focus();
     }catch(x){show(/rate|many/i.test(x.message)?'محاولات كثيرة. انتظر قليلاً ثم حاول مجدداً':'تعذر الدخول: '+x.message,true)}
     finally{b.disabled=false}
