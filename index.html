@@ -3,7 +3,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Tajawal:wght@500;700;800&display=swap">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="vendor/xlsx-0.18.5.full.min.js"></script>
 <style>
 body{margin:0}
 body.auth .app{grid-template-columns:minmax(0,1fr)}
@@ -258,7 +258,7 @@ body.ro [data-act=new-payment],body.ro [data-act=edit-payment],body.ro [data-act
 <div id="layer"></div>
 <div id="more" class="ovl moresheet" hidden><div class="sheet" role="menu" aria-label="المزيد"></div></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="vendor/supabase-js-2.45.4.umd.js"></script>
 <script>
 /* ---------- Supabase backend: replaces the claude.ai runtime (db / user / downloads) ---------- */
 const SB_URL='https://rokzlovdtnmnopgdxadq.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJva3psb3ZkdG5tbm9wZ2R4YWRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1NDUzODgsImV4cCI6MjEwNDEyMTM4OH0.A6w7orxxTUToNe88mcLzGgDgiOCSu7cESV_Kpkr9jBM';
@@ -380,7 +380,7 @@ const diffDays=iso=>Math.round((new Date(iso+'T00:00:00')-new Date(todayISO()+'T
 const fmtD=iso=>iso?iso.split('-').reverse().join('/'):'—';
 const num=n=>Number(n||0).toLocaleString('en-US',{maximumFractionDigits:2});
 const CUR={USD:'$',CNY:'¥'};
-const money=(n,c)=>'<bdi dir="ltr">'+(CUR[c]||c||'$')+num(n)+'</bdi>';
+const money=(n,c)=>'<bdi dir="ltr">'+(CUR[c]||esc(c)||'$')+esc(num(n))+'</bdi>';
 const addTo=(o,c,v)=>{c=c||'USD';o[c]=(o[c]||0)+v};
 const multi=(o,stack)=>{const k=Object.keys(o).filter(c=>Math.abs(o[c])>0.001);if(!k.length)return money(0,'USD');return k.map(c=>stack?'<span class="stk">'+money(o[c],c)+'</span>':money(o[c],c)).join(stack?'':' · ')};
 const plural=n=>n===1?'يوم':n===2?'يومان':n<=10?n+' أيام':n+' يوماً';
@@ -856,9 +856,9 @@ function dashboard(){
   late.forEach(r=>alerts.push({k:'bad',t:`الطلب ${r.o.ref} (${factoryName(r.o.factoryId)}) متأخر عن موعد التجهيز`,s:dueText(r.o.prepDate),act:'open-order',id:r.o.id}));
   lateP.forEach(p=>{const o=byId('orders',p.orderId);alerts.push({k:'bad',t:`دفعة ${p.label||''} للطلب ${o?o.ref:'—'} متأخرة`,s:money(p.amount,o&&o.currency)+' · '+dueText(p.dueDate),act:'open-order',id:p.orderId})});
   unpaid.filter(p=>p.dueDate&&diffDays(p.dueDate)>=0&&diffDays(p.dueDate)<=3).forEach(p=>{const o=byId('orders',p.orderId);alerts.push({k:'warn',t:`دفعة ${p.label||''} للطلب ${o?o.ref:'—'} تستحق قريباً`,s:money(p.amount,o&&o.currency)+' · '+dueText(p.dueDate),act:'open-order',id:p.orderId})});
-  S.orders.filter(o=>o.stage==='shipped').forEach(o=>{const ss=S.shipments.filter(s=>s.orderId===o.id);if(ss.length&&ss.every(s=>s.status==='arrived'))alerts.push({k:'warn',t:`كل شحنات الطلب ${o.ref} وصلت. حدّث المرحلة إلى «مستلم»`,s:factoryName(o.factoryId),act:'open-order',id:o.id})});
+  S.orders.filter(o=>o.stage==='shipped').forEach(o=>{const ss=S.shipments.filter(s=>s.orderId===o.id);if(ss.length&&ss.every(s=>s.status==='arrived'))alerts.push({k:'warn',t:`كل شحنات الطلب ${o.ref} وصلت. حدّث المرحلة إلى «مستلم»`,s:esc(factoryName(o.factoryId)),act:'open-order',id:o.id})});
   transit.filter(s=>s.eta&&diffDays(s.eta)<0).forEach(s=>alerts.push({k:'warn',t:`الشحنة ${s.ref} تجاوزت موعد الوصول المتوقع`,s:dueText(s.eta),act:'edit-shipment',id:s.id}));
-  ready.filter(r=>!S.shipments.some(s=>s.orderId===r.o.id)).forEach(r=>alerts.push({k:'warn',t:`الطلب ${r.o.ref} جاهز للشحن ولم تُسجَّل له شحنة`,s:factoryName(r.o.factoryId),act:'open-order',id:r.o.id}));
+  ready.filter(r=>!S.shipments.some(s=>s.orderId===r.o.id)).forEach(r=>alerts.push({k:'warn',t:`الطلب ${r.o.ref} جاهز للشحن ولم تُسجَّل له شحنة`,s:esc(factoryName(r.o.factoryId)),act:'open-order',id:r.o.id}));
   alerts.sort((a,b)=>(a.k==='bad'?0:1)-(b.k==='bad'?0:1));
   const kpi=(l,v,s,k,view,st)=>`<button class="kpi ${k||''}" data-act="nav" data-view="${view}" data-st="${st||''}"><span>${l}</span><b>${v}</b><small>${s||'&nbsp;'}</small></button>`;
   const upPays=unpaid.slice().sort((a,b)=>(a.dueDate||'9').localeCompare(b.dueDate||'9')).slice(0,6);
@@ -879,7 +879,7 @@ function dashboard(){
     ${kpi('مستحق لشركات الشحن',multi(carrTotal,true),'رصيد غير مسدّد','', 'carriers','')}
   </div>
   <div class="panels">
-    <div class="card"><h3>التنبيهات ${alerts.length?pill('bad',alerts.length):''}</h3><ul class="list">${alerts.slice(0,8).map(a=>`<li><div class="t"><button class="link" data-act="${a.act}" data-id="${a.id}"><b>${esc(a.t)}</b></button><small>${a.s}</small></div>${pill(a.k,a.k==='bad'?'عاجل':'انتبه')}</li>`).join('')||'<li style="color:var(--mute)">لا توجد تنبيهات حالياً</li>'}</ul></div>
+    <div class="card"><h3>التنبيهات ${alerts.length?pill('bad',alerts.length):''}</h3><ul class="list">${alerts.slice(0,8).map(a=>`<li><div class="t"><button class="link" data-act="${esc(a.act)}" data-id="${esc(a.id)}"><b>${esc(a.t)}</b></button><small>${a.s}</small></div>${pill(a.k,a.k==='bad'?'عاجل':'انتبه')}</li>`).join('')||'<li style="color:var(--mute)">لا توجد تنبيهات حالياً</li>'}</ul></div>
     ${forecastCard(unpaid)}
     <div class="card"><h3>الدفعات القادمة <button class="btn ghost sm" data-act="nav" data-view="payments">الكل</button></h3><ul class="list">${upPays.map(p=>{const o=byId('orders',p.orderId);return `<li><div class="t"><b>${esc(p.label||'دفعة')} · ${esc(o?o.ref:'—')}</b><small>${esc(o?factoryName(o.factoryId):'')} · ${fmtD(p.dueDate)}</small></div><div class="r">${money(p.amount,o&&o.currency)}<br>${pill(dueKind(p.dueDate),dueText(p.dueDate))}</div></li>`}).join('')||'<li style="color:var(--mute)">لا توجد دفعات غير مسدّدة</li>'}</ul></div>
     <div class="card"><h3>مواعيد التجهيز <button class="btn ghost sm" data-act="nav" data-view="orders">الطلبات</button></h3><ul class="list">${upPrep.map(r=>`<li><div class="t"><button class="link" data-act="open-order" data-id="${r.o.id}"><b>${esc(r.o.ref)}</b></button><small>${esc(factoryName(r.o.factoryId))} · ${fmtD(r.o.prepDate)}</small></div><div class="r">${pill(r.i.timing.k,r.i.timing.t)}</div></li>`).join('')||'<li style="color:var(--mute)">لا توجد مواعيد تجهيز قادمة</li>'}</ul></div>
