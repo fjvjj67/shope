@@ -731,7 +731,7 @@ function askDelete(col,id){
   else if(col==='carriers'){const c=byId('carriers',id);if(!c)return;label='شركة الشحن '+c.name;
     const n=S.shipments.filter(s=>s.carrierId===id).length;
     if(n){openModal('لا يمكن الحذف','<p>شركة الشحن <b>'+esc(c.name)+'</b> مرتبطة بـ '+n+' شحنة. احذف الشحنات أو غيّر شركتها أولاً.</p><div class="mf"><button type="button" class="btn" data-act="close">حسناً</button></div>',{back});return}}
-  openModal('تأكيد الحذف',`<p>سيتم حذف <b>${esc(label)}</b> نهائياً ولا يمكن التراجع.${warn?'<br>'+esc(warn):''}</p><div class="mf"><button type="button" class="btn ghost" data-act="close">تراجع</button><button type="button" class="btn danger" data-act="del-ok" data-col="${col}" data-id="${id}">حذف نهائياً</button></div>`,{back});
+  openModal('تأكيد الحذف',`<p>سيتم حذف <b>${esc(label)}</b> ؟ سينتقل إلى <b>سلة المحذوفات</b> ويستطيع المدير استرجاعه.${warn?'<br>'+esc(warn):''}</p><div class="mf"><button type="button" class="btn ghost" data-act="close">تراجع</button><button type="button" class="btn danger" data-act="del-ok" data-col="${col}" data-id="${id}">حذف</button></div>`,{back});
 }
 async function doDelete(col,id){
   try{
@@ -745,6 +745,40 @@ async function doDelete(col,id){
     if(col==='orders'||col==='factories'||col==='carriers')M.back=null;
     closeModal();toast('تم الحذف');
   }catch(e){}
+}
+
+
+/* ---------- سلة المحذوفات (من سجل docs_history المحمي داخل قاعدة البيانات) ---------- */
+let TRASH=[];
+const exists=(col,id)=>!!byId(col,id);
+async function trashView(){
+  const v=$('#view');v.innerHTML='<div class="skel"></div>';
+  const {data,error}=await sb.from('docs_history').select('id,col,doc_id,old_data,changed_by,changed_at').eq('action','delete').in('col',COLS).order('changed_at',{ascending:false}).limit(300);
+  if(cur!=='trash')return;
+  if(error){v.innerHTML=empty('سلة المحذوفات غير مفعّلة بعد','طبّق ملف supabase/02_history.sql في Supabase ثم حدّث الصفحة.');return}
+  const seen=new Set();
+  TRASH=(data||[]).filter(h=>{const k=h.col+'/'+h.doc_id;if(seen.has(k)||exists(h.col,h.doc_id))return false;seen.add(k);return true});
+  if(!TRASH.length){v.innerHTML=`<div class="hint">أي طلب أو دفعة أو شحنة تنحذف تظهر هنا، وتگدر تسترجعها بضغطة. السجل محفوظ داخل قاعدة البيانات ولا يمكن مسحه من التطبيق.</div>`+empty('السلة فارغة','لا توجد سجلات محذوفة.');return}
+  let names={};try{names=await SB_USERNS.profiles([...new Set(TRASH.map(h=>h.changed_by).filter(Boolean))])}catch(e){}
+  if(cur!=='trash')return;
+  const lbl=h=>{const o=h.old_data||{};if(h.col==='payments'){const ord=byId('orders',o.orderId);return (ord?ord.ref:'طلب محذوف')+' · '+num(o.amount)+(o.label?' · '+o.label:'')}return labelOf(h.col,o)||h.doc_id};
+  v.innerHTML=`<div class="hint">الاسترجاع يرجّع السجل بنفس بياناته. استرجاع طلب يرجّع وياه دفعاته المحذوفة معه.</div>
+  <div class="card scroll"><table class="tbl"><thead><tr><th>النوع</th><th>السجل</th><th>تاريخ الحذف</th><th>حذفه</th><th></th></tr></thead><tbody>${TRASH.map(h=>`<tr><td data-label="النوع">${pill('mute',COL_TXT[h.col]||h.col)}</td><td data-label="السجل"><b>${esc(lbl(h))}</b></td><td data-label="تاريخ الحذف">${fmtDT(Date.parse(h.changed_at))}</td><td data-label="حذفه">${esc((names[h.changed_by]&&names[h.changed_by].name)||'—')}</td><td class="nolab"><div class="acts"><button class="btn sm" data-act="restore-doc" data-hid="${h.id}">استرجاع</button></div></td></tr>`).join('')}</tbody></table></div>`;
+}
+async function restoreDoc(hid){
+  const h=TRASH.find(x=>x.id===hid);if(!h)return;
+  const o=h.old_data||{};
+  if(h.col==='payments'&&!exists('orders',o.orderId)){toast('استرجع الطلب الخاص بهذه الدفعة أولاً','bad');return}
+  if(h.col==='orders'&&o.factoryId&&!exists('factories',o.factoryId)){toast('المصنع الخاص بهذا الطلب محذوف، استرجعه أولاً','bad');return}
+  if(h.col==='shipments'&&o.carrierId&&!exists('carriers',o.carrierId)){toast('شركة الشحن الخاصة بهذه الشحنة محذوفة، استرجعها أولاً','bad');return}
+  try{
+    await put(h.col,Object.assign({},o,{id:h.doc_id}),{quiet:true});
+    let n=0;
+    if(h.col==='orders')for(const p of TRASH.filter(x=>x.col==='payments'&&x.old_data&&x.old_data.orderId===h.doc_id)){await put('payments',Object.assign({},p.old_data,{id:p.doc_id}),{quiet:true});n++}
+    logAct('restore',h.col,'استرجاع '+(COL_TXT[h.col]||'')+' من السلة'+(n?' مع '+n+' دفعة':''));
+    toast('تم الاسترجاع'+(n?' مع '+n+' دفعة':''));
+  }catch(e){return}
+  setTimeout(()=>{if(cur==='trash')trashView()},400);
 }
 
 /* ---------- order detail ---------- */
@@ -1012,12 +1046,13 @@ async function demoClear(){
 }
 
 /* ---------- shell ---------- */
-const NAV=[['home','الرئيسية','home'],['orders','الطلبات','box'],['payments','الدفعات','wallet'],['shipments','الشحنات','ship'],['factories','المصانع','factory'],['carriers','شركات الشحن','truck'],['activity','سجل النشاط','clock'],['backup','الملفات والنسخ','db'],['users','المستخدمون','users']];
-const TITLES={home:'الرئيسية',orders:'الطلبات',payments:'الدفعات',shipments:'الشحنات',factories:'المصانع',carriers:'شركات الشحن',activity:'سجل النشاط',backup:'الملفات والنسخ الاحتياطي',users:'المستخدمون والصلاحيات'};
+const NAV=[['home','الرئيسية','home'],['orders','الطلبات','box'],['payments','الدفعات','wallet'],['shipments','الشحنات','ship'],['factories','المصانع','factory'],['carriers','شركات الشحن','truck'],['activity','سجل النشاط','clock'],['backup','الملفات والنسخ','db'],['trash','سلة المحذوفات','trash'],['users','المستخدمون','users']];
+const TITLES={home:'الرئيسية',orders:'الطلبات',payments:'الدفعات',shipments:'الشحنات',factories:'المصانع',carriers:'شركات الشحن',activity:'سجل النشاط',backup:'الملفات والنسخ الاحتياطي',trash:'سلة المحذوفات',users:'المستخدمون والصلاحيات'};
 const ADD={orders:['طلب جديد','new-order'],payments:['دفعة جديدة','new-payment'],shipments:['شحنة جديدة','new-shipment'],factories:['مصنع جديد','new-factory'],carriers:['شركة شحن','new-carrier']};
 let cur='home';
 try{const h=location.hash.slice(1);if(NAV.some(n=>n[0]===h))cur=h}catch(e){}
-const navList=()=>NAV.filter(n=>n[0]!=='users'||ADMIN);
+const ADMIN_VIEWS=['users','trash'];
+const navList=()=>NAV.filter(n=>!ADMIN_VIEWS.includes(n[0])||ADMIN);
 function go(v){const same=v===cur;cur=v;try{history.replaceState(null,'','#'+v)}catch(e){}
   const swap=()=>{render();window.scrollTo(0,0)};
   if(same||RM()){swap();return}
@@ -1040,6 +1075,7 @@ function render(){
   if(dbFail){v.innerHTML=empty('تعذر الوصول إلى قاعدة البيانات','تحقق من الاتصال بالإنترنت ثم حدّث الصفحة. إن استمرت المشكلة سجّل الخروج والدخول مجدداً.');return}
   if(cur==='users'){if(!ADMIN){go('home');return}usersView();return}
   if(COLS.some(c=>!loaded[c])){v.innerHTML='<div class="skel"></div><div class="skel"></div>';return}
+  if(cur==='trash'){if(!ADMIN){go('home');return}trashView();return}
   if(cur==='home')v.innerHTML=dashboard();
   else if(LISTS[cur]){
     const opts={orders:[['','كل الطلبات'],['open','المفتوحة'],['late','المتأخرة'],['unpaid','عليها متبقٍ'],['production','قيد التصنيع'],['ready','جاهزة للشحن'],['shipped','تم الشحن'],['received','المستلمة']],
@@ -1098,6 +1134,7 @@ document.addEventListener('click',e=>{
     case 'pick-restore':$('#restoreFile').click();break;
     case 'del-ask':askDelete(d.col,id);break;
     case 'del-ok':doDelete(d.col,id);break;
+    case 'restore-doc':restoreDoc(Number(d.hid));break;
     case 'export-xlsx':exportXlsx();break;
     case 'export-json':exportJson();break;
     case 'demo-load':demoLoad();break;
