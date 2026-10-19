@@ -1,0 +1,30 @@
+# يمنع توقف قاعدة بيانات Supabase المجانية (تتوقف بعد 7 أيام بدون استخدام)
+# يشتغل كل يومين تلقائياً، ويمكن تشغيله يدوياً من تبويب Actions
+name: Supabase keep-alive
+
+on:
+  schedule:
+    - cron: "17 6 */2 * *"   # كل يومين الساعة 9:17 صباحاً بتوقيت بغداد
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          URL="https://rokzlovdtnmnopgdxadq.supabase.co/rest/v1/rpc/keepalive_ping"
+          # المفتاح العام (anon) — نفسه الموجود بصفحة الموقع، ما يقرأ أي بيانات
+          KEY=$(curl -fsS https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/index.html | grep -oE 'eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+' | head -1)
+          for i in 1 2 3; do
+            CODE=$(curl -sS -o /tmp/out -w '%{http_code}' -X POST "$URL" \
+              -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -d '{}')
+            echo "Attempt $i → HTTP $CODE: $(cat /tmp/out)"
+            [ "$CODE" = "200" ] && exit 0
+            sleep 20
+          done
+          echo "::error::Supabase did not respond — check if the project is paused"
+          exit 1
