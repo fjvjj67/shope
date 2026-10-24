@@ -1976,14 +1976,14 @@ function showAuth(mode,msg){
   if(mode==='setup'){a.innerHTML=`<div class="box">${head}<p>لم يتم ربط الموقع بقاعدة البيانات بعد. افتح ملف config.js وضع عنوان المشروع والمفتاح العام (انظر ملف التعليمات).</p></div>`;return}
   if(mode==='pending'){a.innerHTML=`<div class="box">${head}<p>تم تسجيل دخولك، لكن حسابك لم يُفعَّل بعد. اطلب من المدير تفعيله ثم أعد تحميل الصفحة.</p><button class="btn" id="authOut" type="button">تسجيل الخروج</button></div>`;$('#authOut').onclick=logout;return}
   a.innerHTML=`<form class="box" id="authForm" novalidate>${head}<p>اكتب رمز الدخول</p>
-    <label>الرمز<input id="aPin" type="password" inputmode="numeric" autocomplete="current-password" dir="ltr" required></label>
+    <label>الرمز<input id="aPin" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" dir="ltr" required></label>
     <label class="rem"><input id="aRem" type="checkbox" checked>تذكّرني على هذا الجهاز</label>
     <p class="err" id="aErr" role="alert">${esc(msg||'')}</p>
     <button class="btn" id="aGo" type="submit">دخول</button></form>`;
   setTimeout(()=>{const i=$('#aPin');i&&i.focus()},50);
   try{fetch(window.APP_CONFIG.url+'/functions/v1/pin-login',{method:'OPTIONS'}).catch(()=>{})}catch(e){}
   $('#authForm').onsubmit=async ev=>{
-    ev.preventDefault();const pin=$('#aPin').value.trim();
+    ev.preventDefault();const pin=$('#aPin').value.trim().replace(/[٠-٩]/g,d=>d.charCodeAt(0)-0x660).replace(/[۰-۹]/g,d=>d.charCodeAt(0)-0x6F0);
     if(!pin){$('#aErr').textContent='اكتب الرمز';return}
     const b=$('#aGo');b.disabled=true;b.textContent='جارٍ الدخول…';
     try{
