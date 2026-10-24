@@ -7,6 +7,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#0d1213">
 <title>إدارة الطلبات والشحن</title>
+<script>try{if(localStorage.getItem('ts_ui')==='light')document.documentElement.setAttribute('data-ui','light')}catch(e){}</script>
 <link rel="stylesheet" href="fonts/fonts.css">
 <script src="lib/xlsx.full.min.js"></script>
 <script src="lib/supabase.min.js"></script>
@@ -485,6 +486,40 @@ body{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 
 body.pg-home .top>div:first-child{display:none}
 
+/* ---- clean white mode (from the backup page) ---- */
+html:root[data-ui="light"]{
+  --bg:#f4f5f7; --bg-glow:transparent; --glass:#ffffff; --glass-2:#f1f2f5;
+  --line:rgba(17,24,39,.11); --panel:#ffffff; --fg:#14171c; --mute:#5b6270; --accent:#cf5f10; --on-accent:#ffffff;
+  --ok:#17804a; --warn:#9a6200; --bad:#cc3526; --info:#235fa8; --shadow:0 6px 20px rgba(16,24,40,.07);
+  --z-g:#17804a; --z-y:#9a6200; --z-r:#cc3526; color-scheme:light}
+html[data-ui="light"] body{background:var(--bg)!important;background-image:none!important}
+html[data-ui="light"] .side{backdrop-filter:none;-webkit-backdrop-filter:none}
+@media (max-width:760px){html[data-ui="light"] .side{box-shadow:0 10px 28px rgba(16,24,40,.12)!important}html[data-ui="light"] .top{box-shadow:0 8px 14px -12px rgba(16,24,40,.25)!important}}
+html[data-ui="light"] .zhero{background:#ffffff;border-color:var(--line);color:var(--fg);box-shadow:var(--shadow)}
+html[data-ui="light"] .zhero::after{background:radial-gradient(circle,rgba(207,95,16,.08),transparent 70%)}
+html[data-ui="light"] .zhero .zl{color:var(--accent)}
+html[data-ui="light"] .zbig small{color:var(--mute)}
+html[data-ui="light"] .zsub{color:var(--mute)}html[data-ui="light"] .zsub b{color:var(--fg)}
+html[data-ui="light"] .zedit{border-color:var(--line);background:#f3f4f6;color:var(--accent)}
+html[data-ui="light"] .zedit:hover{background:#e9ebef}
+html[data-ui="light"] .zrow div{background:#f3f4f6}
+html[data-ui="light"] .zrow small{color:var(--mute)}
+html[data-ui="light"] .zbar{background:#e8eaee}
+html[data-ui="light"] .zbar .p{background:linear-gradient(90deg,#cf5f10,#f08a3e)}
+html[data-ui="light"] .zbar .s{background:rgba(154,98,0,.35)}
+html[data-ui="light"] .card.pend{border-color:rgba(154,98,0,.35);background:linear-gradient(160deg,rgba(154,98,0,.07),var(--glass) 60%)}
+html[data-ui="light"] .wtx.wait .ic{background:rgba(154,98,0,.12)}
+html[data-ui="light"] .zpick button[aria-pressed="true"]{background:rgba(207,95,16,.09)}
+html[data-ui="light"] .cb-it:hover,html[data-ui="light"] .cb-it:focus-visible{background:rgba(17,24,39,.05)}
+html[data-ui="light"] .cb-it[aria-selected="true"]{background:rgba(207,95,16,.10)}
+html[data-ui="light"] .cb-it .am{color:var(--accent)}
+html[data-ui="light"] .ovl{background:rgba(17,24,39,.38)}
+.uisw{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.uisw button{display:flex;align-items:center;gap:10px;padding:12px;border-radius:16px;border:1.5px solid var(--line);background:var(--glass-2);cursor:pointer;font-weight:700;min-height:56px;color:var(--fg)}
+.uisw button[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
+.uisw .sw{width:30px;height:30px;border-radius:9px;flex:none;border:1px solid rgba(128,128,128,.35)}
+.uisw .sw.d{background:linear-gradient(150deg,#4a2c19,#140e0a)}.uisw .sw.l{background:linear-gradient(150deg,#ffffff,#eceef1)}
+
 body{margin:0}
 #auth{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--bg);background-image:radial-gradient(900px 500px at 85% -10%,var(--bg-glow),transparent 60%)}
 #auth[hidden]{display:none}
@@ -875,7 +910,7 @@ function carrierCard(){
   return `<div class="card"><h3>${one?'رصيدك عند '+esc(list[0].name):'رصيدك عند شركات الشحن'}</h3>${rows}${one?`<div class="wacts" style="margin-top:12px"><button class="wact in" type="button" data-act="w-in"><span>${wico('in')}</span>أرسلت فلوس</button><button class="wact out" type="button" data-act="w-pay"><span>${wico('out')}</span>دفعوا لمصنع</button><button class="wact fee" type="button" data-act="w-fee"><span>${wico('fee')}</span>شحن ونقل</button></div>`:''}</div>`;
 }
 function carriersView(home){
-  if(!S.carriers.length&&home)return `<div class="d-wal"><section class="zhero"><span class="zl">رصيدك عند شركة الشحن</span><div class="zbig">0<small>¥</small></div><span style="color:#b6a08c;font-size:14px">ابدأ بـ "أرسلت فلوس"، والنظام يفتح حساب شركة الشحن مال ${esc(coName(ACTIVE))} تلقائياً.</span></section>${WACTS()}</div><div class="d-stmt"><div class="card"><h3>كشف الحساب</h3><p style="color:var(--mute);margin:0">لا توجد حركات بعد.</p></div></div>`;
+  if(!S.carriers.length&&home)return `<div class="d-wal"><section class="zhero"><span class="zl">رصيدك عند شركة الشحن</span><div class="zbig">0<small>¥</small></div><span style="color:var(--mute);font-size:14px">ابدأ بـ "أرسلت فلوس"، والنظام يفتح حساب شركة الشحن مال ${esc(coName(ACTIVE))} تلقائياً.</span></section>${WACTS()}</div><div class="d-stmt"><div class="card"><h3>كشف الحساب</h3><p style="color:var(--mute);margin:0">لا توجد حركات بعد.</p></div></div>`;
   if(!S.carriers.length)return empty('لا توجد شركات شحن','أضف شركة الشحن اللي تتعامل وياها (مثلاً مكتب كوانزو ومكتب ايوو). فلوسك تتجمع عندها وهي تدفع للمصانع.',`<button class="btn" data-act="new-carrier">${ico('plus')} شركة شحن جديدة</button>`);
   if(!WCAR||!byId('carriers',WCAR))WCAR=S.carriers.slice().sort((a,b)=>a.name.localeCompare(b.name,'ar'))[0].id;
   const c=byId('carriers',WCAR),rows=walletRows(WCAR),b={};rows.forEach(r=>{b[r.cur]=r2((b[r.cur]||0)+r.amt)});
@@ -887,8 +922,8 @@ function carriersView(home){
   <div class="${home?'d-wal-wrap':'panels'}">
    <div class="${home?'d-wal':''}" style="display:flex;flex-direction:column;gap:14px;min-width:0">
     <section class="zhero"><span class="zl" style="display:flex;align-items:center;justify-content:space-between;gap:8px">رصيدك عند ${esc(c.name)}<button type="button" class="zedit" data-act="edit-carrier" data-id="${c.id}" aria-label="تعديل بيانات شركة الشحن" title="تعديل الاسم أو الهاتف أو الرصيد السابق">${ico('edit',15)}</button></span><div class="zbig">${mv<0?'−':''}${num(Math.abs(mv))}<small>${CUR[main]||main}</small></div>
-     <span style="color:#b6a08c;font-size:14px">${mv>=0?'هذا المبلغ موجود عندهم لك، ويدفعون منه للمصانع.':'انت مطلوب لهم بهذا المبلغ.'}${others.length?' · وبالعملة الثانية: '+balLine(Object.fromEntries(others.map(k=>[k,b[k]]))):''}</span>
-     <div class="zrow"><div><small>أرسلت</small><b style="color:#86d49f">${sumK('in')}</b></div><div><small>دفعوا للمصانع</small><b style="color:#ff8f7d">${sumK('out')}</b></div><div><small>شحن ونقل</small><b style="color:#f2c060">${sumK('fee')}</b></div></div></section>
+     <span style="color:var(--mute);font-size:14px">${mv>=0?'هذا المبلغ موجود عندهم لك، ويدفعون منه للمصانع.':'انت مطلوب لهم بهذا المبلغ.'}${others.length?' · وبالعملة الثانية: '+balLine(Object.fromEntries(others.map(k=>[k,b[k]]))):''}</span>
+     <div class="zrow"><div><small>أرسلت</small><b style="color:var(--z-g,#86d49f)">${sumK('in')}</b></div><div><small>دفعوا للمصانع</small><b style="color:var(--z-r,#ff8f7d)">${sumK('out')}</b></div><div><small>شحن ونقل</small><b style="color:var(--z-y,#f2c060)">${sumK('fee')}</b></div></div></section>
     ${WACTS()}
    </div>
    <div class="${home?'d-stmt':''}" style="display:flex;flex-direction:column;gap:14px;min-width:0">${pendCard(c)}<div class="card"><h3>كشف الحساب${home&&all.length>shown.length?` <button class="btn ghost sm" data-act="w-stmt">الكل (${all.length})</button>`:''}</h3>${shown.length?shown.map(r=>`<div class="wtx ${r.k}"><span class="ic">${wico(r.k)}</span><div class="t"><b>${esc(r.t)}${r.rc?` <button type="button" class="rcbtn" data-act="view-rc" data-id="${r.rc.id}" aria-label="صورة الوصل">🧾</button>`:''}</b><small>${r.d?fmtD(r.d):'—'}${r.sub?' · '+esc(r.sub):''}</small></div><div class="r"><b>${r.amt>=0?'+':'−'}${money(Math.abs(r.amt),r.cur)}</b><small>الرصيد ${r.bal<0?'−':''}${num(Math.abs(r.bal))}</small>${ADMIN&&r.id?`<button class="icon" style="width:30px;height:30px" data-act="del-ask" data-col="ctx" data-id="${r.id}" aria-label="حذف">${ico('trash',14)}</button>`:''}</div></div>`).join(''):'<p style="color:var(--mute);margin:0">لا توجد حركات بعد. ابدأ بـ "أرسلت فلوس".</p>'}</div></div>
@@ -1578,12 +1613,15 @@ async function fillNames(){
   let ps={};try{if(userNS)ps=await userNS.profiles([...new Set(els.map(e=>e.dataset.uid).filter(Boolean))])}catch(e){}
   els.forEach(e=>{const u=e.dataset.uid,p=ps[u];e.textContent=(p&&p.name)||(p&&p.isMe?'أنت':(u?'مستخدم':'النظام'))});
 }
+function uiMode(){return document.documentElement.getAttribute('data-ui')==='light'?'light':'dark'}
+function setUI(v){if(v==='light')document.documentElement.setAttribute('data-ui','light');else document.documentElement.removeAttribute('data-ui');try{localStorage.setItem('ts_ui',v)}catch(e){}render()}
 function backupView(){
   const hasDemo=COLS.some(c=>S[c].some(x=>x.demo));
   return `<div class="panels">
    ${externalCard()}
    <div class="card"><h3>تصدير إلى Excel</h3><p style="color:var(--mute);margin:0 0 12px">ملف واحد فيه الطلبات مع صورها، وورقة لكل الصور بحجم كبير، والدفعات والشحنات والمصانع وشركات الشحن. يفتح في Excel و WPS وNumbers بدون إنترنت أو خدمات Google.</p><button class="btn" data-act="export-xlsx">${ico('down')} تنزيل ملف Excel</button></div>
    <div class="card"><h3>نسخة احتياطية</h3><p style="color:var(--mute);margin:0 0 12px">نسخة كاملة بصيغة JSON. احتفظ بنسخة دورية خارج النظام. الاستعادة تدمج النسخة مع الموجود ولا تحذف شيئاً.<br><b style="color:var(--fg)">${META.backup?'آخر نسخة: '+fmtDT(META.backup.at):'لم تُحفظ نسخة بعد'}</b></p><div class="bar"><button class="btn ghost" data-act="export-json">${ico('down')} حفظ نسخة</button><label class="btn ghost filebtn adm">${ico('up')} استعادة نسخة<input type="file" id="restoreFile" accept=".json" class="vh"></label></div></div>
+   <div class="card"><h3>المظهر</h3><p style="color:var(--mute);margin:0 0 12px">اختار شكل الشاشة. كل جهاز يتذكر اختياره.</p><div class="uisw" role="group" aria-label="المظهر"><button type="button" data-act="ui-theme" data-v="dark" aria-pressed="${uiMode()!=='light'}"><span class="sw d"></span>غامق</button><button type="button" data-act="ui-theme" data-v="light" aria-pressed="${uiMode()==='light'}"><span class="sw l"></span>أبيض نظيف</button></div></div>
    ${hasDemo?`<div class="card"><h3>بيانات تجريبية قديمة</h3><p style="color:var(--mute);margin:0 0 12px">اكو بيانات تجريبية بالنظام. تكدر تحذفها كلها بضغطة بدون ما تمس بياناتك.</p><div class="bar"><button class="btn danger" data-act="demo-clear">حذف التجريبي</button></div></div>`:''}
   </div>`;
 }
@@ -1824,6 +1862,7 @@ document.addEventListener('click',e=>{
     case 'del-ok':doDelete(d.col,id);break;
     case 'export-xlsx':exportXlsx();break;
     case 'export-json':exportJson();break;
+    case 'ui-theme':setUI(d.v);break;
     case 'demo-load':demoLoad();break;
     case 'demo-clear':demoClear();break;
   }
