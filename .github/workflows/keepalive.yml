@@ -14,11 +14,17 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Ping Supabase
         run: |
           URL="https://rokzlovdtnmnopgdxadq.supabase.co/rest/v1/rpc/keepalive_ping"
           # المفتاح العام (anon) — نفسه الموجود بصفحة الموقع، ما يقرأ أي بيانات
-          KEY=$(curl -fsS https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/index.html | grep -oE 'eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+' | head -1)
+          # يدوّر بكل ملفات الموقع (مو بملف واحد) حتى ما ينكسر إذا تغيّر ترتيب الكود
+          KEY=$(grep -rhoE 'eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+' --include='*.js' --include='*.html' --exclude-dir=lib --exclude-dir=tests --exclude-dir=.git . | head -1)
+          if [ -z "$KEY" ]; then
+            echo "::error::Supabase anon key not found in the site files"
+            exit 1
+          fi
           for i in 1 2 3; do
             CODE=$(curl -sS -o /tmp/out -w '%{http_code}' -X POST "$URL" \
               -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -d '{}')
