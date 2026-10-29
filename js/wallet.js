@@ -116,6 +116,11 @@ function balLine(b) {
   if (!k.length) return money(0, 'CNY');
   return k.map(c => (b[c] < 0 ? 'عليك ' + money(-b[c], c) : money(b[c], c))).join(' · ');
 }
+/* running balance under each statement line: «عليك ¥X» (red) / «لك ¥X» (green) */
+const stmtBal = (b, c) =>
+  Math.abs(b) < 0.005
+    ? `<small class="bal">${money(0, c)}</small>`
+    : `<small class="bal ${b < 0 ? 'neg' : 'pos'}">${b < 0 ? 'عليك' : 'لك'} ${money(Math.abs(b), c)}</small>`;
 const WIC = {
   in: '<path d="M12 19V5M5 12l7-7 7 7"/>',
   out: '<path d="M3 21V10l6 4v-4l6 4V6h6v15z"/>',
@@ -231,7 +236,7 @@ function stmtModal() {
   const all = walletRows(c.id).slice().reverse();
   openModal(
     'كشف حساب ' + c.name,
-    `<div>${all.map(r => `<div class="wtx ${r.k}"><span class="ic">${wico(r.k)}</span><div class="t"><b>${esc(r.t)}${r.rc ? ` <button type="button" class="rcbtn" data-act="view-rc" data-id="${r.rc.id}" aria-label="صورة الوصل">🧾</button>` : ''}</b><small>${r.d ? fmtD(r.d) : '—'}${r.sub ? ' · ' + esc(r.sub) : ''}</small></div><div class="r"><b>${r.amt >= 0 ? '+' : '−'}${money(Math.abs(r.amt), r.cur)}</b><small>الرصيد ${r.bal < 0 ? '−' : ''}${num(Math.abs(r.bal))}</small>${ADMIN && r.id ? `<button class="icon" style="width:30px;height:30px" data-act="del-ask" data-col="ctx" data-id="${r.id}" aria-label="حذف">${ico('trash', 14)}</button>` : ''}</div></div>`).join('') || '<p style="color:var(--mute)">لا توجد حركات</p>'}</div>`,
+    `<div>${all.map(r => `<div class="wtx ${r.k}"><span class="ic">${wico(r.k)}</span><div class="t"><b>${esc(r.t)}${r.rc ? ` <button type="button" class="rcbtn" data-act="view-rc" data-id="${r.rc.id}" aria-label="صورة الوصل">🧾</button>` : ''}</b><small>${r.d ? fmtD(r.d) : '—'}${r.sub ? ' · ' + esc(r.sub) : ''}</small></div><div class="r"><b>${r.amt >= 0 ? '+' : '−'}${money(Math.abs(r.amt), r.cur)}</b>${stmtBal(r.bal, r.cur)}${ADMIN && r.id ? `<button class="icon" style="width:30px;height:30px" data-act="del-ask" data-col="ctx" data-id="${r.id}" aria-label="حذف">${ico('trash', 14)}</button>` : ''}</div></div>`).join('') || '<p style="color:var(--mute)">لا توجد حركات</p>'}</div>`,
     { wide: true }
   );
 }
@@ -290,7 +295,7 @@ function carriersView(home) {
      <div class="zrow"><div><small>أرسلت</small><b style="color:var(--z-g,#86d49f)">${sumK('in')}</b></div><div><small>دفعوا للمصانع</small><b style="color:var(--z-r,#ff8f7d)">${sumK('out')}</b></div><div><small>شحن ونقل</small><b style="color:var(--z-y,#f2c060)">${sumK('fee')}</b></div></div></section>
     ${WACTS()}
    </div>
-   <div class="${home ? 'd-stmt' : ''}" style="display:flex;flex-direction:column;gap:14px;min-width:0">${pendCard(c)}<div class="card"><h3>كشف الحساب${home && all.length > shown.length ? ` <button class="btn ghost sm" data-act="w-stmt">الكل (${all.length})</button>` : ''}</h3>${shown.length ? shown.map(r => `<div class="wtx ${r.k}"><span class="ic">${wico(r.k)}</span><div class="t"><b>${esc(r.t)}${r.rc ? ` <button type="button" class="rcbtn" data-act="view-rc" data-id="${r.rc.id}" aria-label="صورة الوصل">🧾</button>` : ''}</b><small>${r.d ? fmtD(r.d) : '—'}${r.sub ? ' · ' + esc(r.sub) : ''}</small></div><div class="r"><b>${r.amt >= 0 ? '+' : '−'}${money(Math.abs(r.amt), r.cur)}</b><small>الرصيد ${r.bal < 0 ? '−' : ''}${num(Math.abs(r.bal))}</small>${ADMIN && r.id ? `<button class="icon" style="width:30px;height:30px" data-act="del-ask" data-col="ctx" data-id="${r.id}" aria-label="حذف">${ico('trash', 14)}</button>` : ''}</div></div>`).join('') : '<p style="color:var(--mute);margin:0">لا توجد حركات بعد. ابدأ بـ "أرسلت فلوس".</p>'}</div></div>
+   <div class="${home ? 'd-stmt' : ''}" style="display:flex;flex-direction:column;gap:14px;min-width:0">${pendCard(c)}<div class="card"><h3>كشف الحساب${home && all.length > shown.length ? ` <button class="btn ghost sm" data-act="w-stmt">الكل (${all.length})</button>` : ''}</h3>${shown.length ? shown.map(r => `<div class="wtx ${r.k}"><span class="ic">${wico(r.k)}</span><div class="t"><b>${esc(r.t)}${r.rc ? ` <button type="button" class="rcbtn" data-act="view-rc" data-id="${r.rc.id}" aria-label="صورة الوصل">🧾</button>` : ''}</b><small>${r.d ? fmtD(r.d) : '—'}${r.sub ? ' · ' + esc(r.sub) : ''}</small></div><div class="r"><b>${r.amt >= 0 ? '+' : '−'}${money(Math.abs(r.amt), r.cur)}</b>${stmtBal(r.bal, r.cur)}${ADMIN && r.id ? `<button class="icon" style="width:30px;height:30px" data-act="del-ask" data-col="ctx" data-id="${r.id}" aria-label="حذف">${ico('trash', 14)}</button>` : ''}</div></div>`).join('') : '<p style="color:var(--mute);margin:0">لا توجد حركات بعد. ابدأ بـ "أرسلت فلوس".</p>'}</div></div>
   </div>`;
 }
 function wCarPick(direct) {

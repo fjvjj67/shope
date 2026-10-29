@@ -436,6 +436,15 @@ body.ro .zedit {
   direction: ltr;
   white-space: nowrap;
 }
+.wtx .r small.bal {
+  direction: inherit;
+}
+.wtx .r small.bal.neg {
+  color: var(--bad);
+}
+.wtx .r small.bal.pos {
+  color: var(--ok);
+}
 .zpick {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
