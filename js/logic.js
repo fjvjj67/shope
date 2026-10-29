@@ -98,6 +98,9 @@ const factoryName = id => {
   const f = byId('factories', id);
   return f ? f.name : '—';
 };
+/* newest first: by order date, then the one entered last on top */
+const byNewest = (a, b) =>
+  (b.orderDate || '').localeCompare(a.orderDate || '') || (+b.createdAt || 0) - (+a.createdAt || 0);
 const orderLabel = o => (o ? (o.ref || 'بدون رقم') + ' · ' + factoryName(o.factoryId) : '—');
 const carrOpen = (c, o) => {
   if (c && +c.openBal) addTo(o, c.openCur || 'USD', +c.openBal);

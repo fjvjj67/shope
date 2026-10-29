@@ -93,7 +93,7 @@ function ordersList() {
       }
       return true;
     })
-    .sort((a, b) => (b.o.orderDate || '').localeCompare(a.o.orderDate || ''));
+    .sort((a, b) => byNewest(a.o, b.o));
   if (!S.orders.length)
     return empty(
       'لا توجد طلبات بعد',
@@ -510,7 +510,7 @@ function openFactory(id) {
     if (!f) return '';
     const os = S.orders
       .filter(o => o.factoryId === id)
-      .sort((a, b) => (b.orderDate || '').localeCompare(a.orderDate || ''));
+      .sort(byNewest);
     const tot = {},
       pd = {},
       rm = {};
