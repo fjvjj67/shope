@@ -104,6 +104,8 @@ function rateTxt(x) {
   if (x.cur === 'USD' || x.payCur === x.cur) return '';
   return 'كل دولار = ' + Math.round((x.amt / x.paid) * 100) / 100 + ' يوان';
 }
+/* the shipment already carries its cost (deducted automatically) → a manual "أجور شحن" for the same order would count twice */
+const shipFeeDup = (cid, oid) => S.shipments.some(x => x.carrierId === cid && x.orderId === oid && +x.cost > 0);
 function walletBal(cid) {
   const b = {};
   walletRows(cid).forEach(r => {
@@ -148,18 +150,10 @@ function confirmForm(id) {
   if (!x) return;
   openModal(
     'تأكيد وصول الحوالة',
-    `<div class="hint">دفعت ${num(x.paid)} ${x.payCur === 'IQD' ? 'د.ع' : '$'} بتاريخ ${fmtD(x.date)}</div>${fld('كم سجلوا لك؟', inp('wAmt', x.amt || '', 'number', 'required'))}<div class="chips" role="group">${[
-      ['CNY', 'يوان ¥'],
-      ['USD', 'دولار $']
-    ]
-      .map(
-        o =>
-          `<button type="button" class="chip" data-act="w-seg" data-k="cur" data-v="${o[0]}" aria-pressed="${o[0] === (x.cur || 'CNY')}">${o[1]}</button>`
-      )
-      .join('')}</div>${fld('تاريخ الوصول', inp('wDate', todayISO(), 'date'))}<p class="hint" id="cHint"></p>`,
+    `<div class="hint">دفعت ${num(x.paid)} ${x.payCur === 'IQD' ? 'د.ع' : '$'} بتاريخ ${fmtD(x.date)}</div>${fld('كم سجلوا لك بالرمبي (¥)؟', inp('wAmt', x.cur === 'CNY' && x.amt ? x.amt : '', 'number', 'required'))}${fld('تاريخ الوصول', inp('wDate', todayISO(), 'date'))}<p class="hint" id="cHint"></p>`,
     {
       onOpen: f => {
-        WS = { kind: 'confirm', ist: 'ok', pc: x.payCur, cur: x.cur || 'CNY', car: x.carrierId };
+        WS = { kind: 'confirm', ist: 'ok', pc: x.payCur, cur: 'CNY', car: x.carrierId };
         const h = () => {
           const a = num2(f.elements.wAmt.value);
           $('#cHint').textContent = a ? rateTxt({ paid: x.paid, amt: a, payCur: x.payCur, cur: WS.cur }) || '' : '';
@@ -173,13 +167,18 @@ function confirmForm(id) {
           ferr('اكتب كم سجلوا لك', 'wAmt');
           return;
         }
+        const cdate = val(f, 'wDate') || todayISO();
+        if (cdate > todayISO()) {
+          ferr('تاريخ الوصول لا يمكن أن يكون في المستقبل', 'wDate');
+          return;
+        }
         await put(
           'ctx',
           Object.assign({}, x, {
             status: 'ok',
             amt,
-            cur: WS.cur,
-            date: val(f, 'wDate') || todayISO(),
+            cur: 'CNY',
+            date: cdate,
             sentDate: x.sentDate || x.date
           })
         );
@@ -356,7 +355,7 @@ function wHint() {
   const f = $('#mform');
   if (WS.kind === 'in') {
     const lb = $('#wAmtL');
-    if (lb) lb.textContent = WS.ist === 'wait' ? 'كم راح يسجلون؟ (اختياري، تكتبه وقت توصل)' : 'كم سجلوا لك؟';
+    if (lb) lb.textContent = WS.ist === 'wait' ? 'كم راح يسجلون بالرمبي؟ (اختياري، تكتبه وقت توصل)' : 'كم سجلوا لك بالرمبي (¥)؟';
     if (WS.ist === 'wait' && !num2(f.elements.wAmt.value)) {
       h.textContent = 'الحوالة تنحفظ بالانتظار وما تنحسب بالرصيد لحد ما تأكد وصولها.';
       return;
@@ -528,14 +527,7 @@ function walletForm(kind, orderId) {
         ['USD', 'دولار']
       ],
       'IQD'
-    )}<label class="fld" id="wAmtF"><span id="wAmtL">كم سجلوا لك؟</span>${inp('wAmt', '', 'number')}</label>${seg(
-      'cur',
-      [
-        ['CNY', 'يوان ¥'],
-        ['USD', 'دولار $']
-      ],
-      'CNY'
-    )}${fld('التاريخ', inp('wDate', todayISO(), 'date'))}<div class="fld"><span>صورة الوصل (اختياري)</span><div class="rcrow"><label class="btn ghost sm filebtn">${ico('up', 15)} صورة الوصل<input type="file" id="wRcpt" accept="image/*,.pdf" class="vh"></label><span id="wRcptPrev"></span></div></div>${fld('ملاحظة', inp('wNote', ''))}<p class="hint" id="wHint"></p>`;
+    )}<label class="fld" id="wAmtF"><span id="wAmtL">كم سجلوا لك بالرمبي (¥)؟</span>${inp('wAmt', '', 'number')}</label>${fld('التاريخ', inp('wDate', todayISO(), 'date'))}<div class="fld"><span>صورة الوصل (اختياري)</span><div class="rcrow"><label class="btn ghost sm filebtn">${ico('up', 15)} صورة الوصل<input type="file" id="wRcpt" accept="image/*,.pdf" class="vh"></label><span id="wRcptPrev"></span></div></div>${fld('ملاحظة', inp('wNote', ''))}<p class="hint" id="wHint"></p>`;
   } else if (kind === 'pay') {
     title = 'شركة الشحن دفعت لمصنع';
     body += `<div class="fld"><span>الطلب</span>${comboHTML('cbOrd')}</div>${seg(
@@ -556,14 +548,7 @@ function walletForm(kind, orderId) {
         ['أخرى', 'أخرى']
       ],
       'شحن'
-    )}<div class="fld"><span>الطلب (اختياري)</span>${comboHTML('cbOrd', true)}</div>${fld('المبلغ', inp('wAmt', '', 'number'))}${seg(
-      'cur',
-      [
-        ['CNY', 'يوان ¥'],
-        ['USD', 'دولار $']
-      ],
-      'CNY'
-    )}${fld('التاريخ', inp('wDate', todayISO(), 'date'))}${fld('ملاحظة', inp('wNote', '', 'text', 'placeholder="مثلاً شحنة بحرية 08"'))}`;
+    )}<div class="fld"><span>الطلب (اختياري)</span>${comboHTML('cbOrd', true)}</div>${fld('المبلغ (¥)', inp('wAmt', '', 'number'))}${fld('التاريخ', inp('wDate', todayISO(), 'date'))}${fld('ملاحظة', inp('wNote', '', 'text', 'placeholder="مثلاً شحنة بحرية 08"'))}<p class="hint">أجور الشحنات المسجلة بصفحة الشحنات تنخصم تلقائياً، لا تسجلها هنا مرة ثانية.</p>`;
   }
   openModal(title, body, {
     back,
@@ -596,6 +581,14 @@ function walletForm(kind, orderId) {
       const wait = kind === 'in' && WS.ist === 'wait';
       if (!(amt > 0) && !wait) {
         ferr('اكتب المبلغ', 'wAmt');
+        return;
+      }
+      if (date > todayISO()) {
+        ferr('التاريخ لا يمكن أن يكون في المستقبل', 'wDate');
+        return;
+      }
+      if (kind === 'fee' && WS.ft === 'شحن' && WS.ord && shipFeeDup(WS.car, WS.ord)) {
+        ferr('أجور شحن هذا الطلب مسجلة بصفحة الشحنات وتنخصم تلقائياً. لا تسجلها مرة ثانية.');
         return;
       }
       if (kind === 'in') {

@@ -30,7 +30,7 @@ js/                     classic scripts sharing globals — ORDER MATTERS (see i
   auth.js               PIN login, remember device, profile/role/company, startApp()
   main.js               starts the app (must be last)
 lib/  fonts/            local copies (works in China without Google/CDNs)
-supabase/               SQL in the order it was applied (01…09) + edge functions
+supabase/               SQL in the order it was applied (01…10) + edge functions
   functions/translate   Chinese⇄Arabic translation with a shared cache table
 tests/                  browser tests with a fake Supabase (tests/mock_supabase.js)
 tools/stamp.py          cache-busting ?v= stamp for css/js

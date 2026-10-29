@@ -130,7 +130,7 @@ function carrierForm(c0, back) {
         e.mode || 'sea'
       )
     )}${fld('مسؤول التواصل', inp('contact', e.contact))}${fld('هاتف', inp('phone', e.phone, 'text', 'dir="ltr"'))}${fld(
-      'رصيد سابق مع الشركة',
+      'رصيد سابق مع الشركة (¥)',
       inp('openBal', e.openBal ? Math.abs(e.openBal) : '', 'number') +
         sel(
           'openDir',
@@ -141,17 +141,21 @@ function carrierForm(c0, back) {
           +e.openBal < 0 ? 'due' : 'owe'
         ),
       'signed'
-    )}${fld(
-      'عملة الرصيد السابق',
-      sel(
-        'openCur',
-        [
-          ['USD', 'دولار $'],
-          ['CNY', 'يوان ¥']
-        ],
-        e.openCur || 'USD'
-      )
-    )}</div>${fld('ملاحظات', ta('note', e.note))}`,
+    )}${
+      +e.openBal && (e.openCur || 'USD') === 'USD'
+        ? fld(
+            'عملة الرصيد السابق',
+            sel(
+              'openCur',
+              [
+                ['USD', 'دولار $'],
+                ['CNY', 'يوان ¥']
+              ],
+              'USD'
+            )
+          )
+        : inp('openCur', 'CNY', 'hidden')
+    }</div>${fld('ملاحظات', ta('note', e.note))}`,
     {
       back,
       del: c0 ? ['carriers', c0.id] : null,
@@ -263,7 +267,7 @@ function orderForm(o0, back) {
   } catch (x) {}
   const e = o0 || {
     stage: 'production',
-    currency: lastC === 'USD' ? 'USD' : 'CNY',
+    currency: 'CNY',
     orderDate: todayISO(),
     items: [],
     factoryId: byId('factories', lastF) ? lastF : S.factories[0] ? S.factories[0].id : ''
@@ -285,17 +289,21 @@ function orderForm(o0, back) {
       <div class="nfbox" id="nfBox"${noF ? '' : ' hidden'}>${inp('newFactory', '', 'text', 'placeholder="اكتب اسم المصنع الجديد" autocomplete="off"')}<small>ينضاف للمصانع تلقائياً وينربط بهذا الطلب.</small></div></div>
     ${fld('رقم الطلب / الفاتورة', inp('ref', e.ref, 'text', 'required autocomplete="off"'), 'wide')}
     ${fld('إجمالي الطلب', inp('total', o0 ? itemsTotal(e) || '' : '', 'number', 'placeholder="0"'))}
-    ${fld(
-      'العملة',
-      sel(
-        'currency',
-        [
-          ['CNY', 'يوان ¥ (رمبي)'],
-          ['USD', 'دولار $']
-        ],
-        e.currency
-      )
-    )}
+    ${
+      e.currency === 'USD'
+        ? fld(
+            'العملة',
+            sel(
+              'currency',
+              [
+                ['CNY', 'يوان ¥ (رمبي)'],
+                ['USD', 'دولار $']
+              ],
+              e.currency
+            )
+          )
+        : inp('currency', 'CNY', 'hidden')
+    }
     ${fld('تاريخ الطلب', inp('orderDate', e.orderDate, 'date'), 'wide')}
   </div>
   ${durField('prepDate', 'المصنع يجهّز الطلب خلال', e.prepDate)}
@@ -713,14 +721,18 @@ function shipmentForm(s0, orderId, back) {
     `<div class="chips" role="group">${opts.map(o => `<button type="button" class="chip" data-act="${act || 'w-seg'}" data-k="${k}" data-v="${o[0]}" aria-pressed="${o[0] === v}">${o[1]}</button>`).join('')}</div>`;
   const body = `${wCarPick()}
     <div class="fld"><span>الطلب</span>${comboHTML('cbOrd', true)}</div>
-    <div class="grid2">${fld('أجور الشحن', inp('cost', e.cost || '', 'number', 'inputmode="decimal"'))}<div class="fld"><span>العملة</span>${seg(
-      'cur',
-      [
-        ['CNY', 'يوان ¥'],
-        ['USD', 'دولار $']
-      ],
-      WS.cur
-    )}</div></div>
+    ${
+      WS.cur === 'USD'
+        ? `<div class="grid2">${fld('أجور الشحن', inp('cost', e.cost || '', 'number', 'inputmode="decimal"'))}<div class="fld"><span>العملة</span>${seg(
+            'cur',
+            [
+              ['CNY', 'يوان ¥'],
+              ['USD', 'دولار $']
+            ],
+            WS.cur
+          )}</div></div>`
+        : fld('أجور الشحن (¥)', inp('cost', e.cost || '', 'number', 'inputmode="decimal"'))
+    }
     <div class="fld"><span>الحالة</span>${seg('st', SHIP_ST, WS.st, 'sh-st')}</div>
     ${fld('تاريخ المغادرة', inp('departDate', e.departDate || todayISO(), 'date'))}
     ${durField('eta', 'يوصل بعد', e.eta)}
@@ -745,6 +757,15 @@ function shipmentForm(s0, orderId, back) {
       const cost = r2(num2(f.elements.cost.value));
       if (cost < 0) {
         ferr('المبلغ لا يمكن أن يكون سالب', 'cost');
+        return;
+      }
+      if (
+        cost > 0 &&
+        !(+e.cost > 0) &&
+        WS.ord &&
+        S.ctx.some(x => x.type === 'fee' && x.ft === 'شحن' && x.carrierId === carrierId && x.orderId === WS.ord)
+      ) {
+        ferr('أجور شحن هذا الطلب مسجلة من زر «شحن ونقل». اترك أجور الشحن فارغة هنا حتى ما تنحسب مرتين.', 'cost');
         return;
       }
       const dd = val(f, 'departDate'),
