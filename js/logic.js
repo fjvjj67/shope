@@ -101,6 +101,30 @@ const factoryName = id => {
 /* newest first: by order date, then the one entered last on top */
 const byNewest = (a, b) =>
   (b.orderDate || '').localeCompare(a.orderDate || '') || (+b.createdAt || 0) - (+a.createdAt || 0);
+/* Batch number (رقم الوجبة): each account has its own prefix + running number, never repeated in that account.
+   Defaults below; the admin can change them from the account details (بادئة / أول رقم). */
+const BATCH_DEF = { main: { p: 'rasool no.', s: 1 }, yiwu: { p: 'ZA ', s: 136 } };
+function batchCfg(co) {
+  co = co || ACTIVE;
+  const c = S.companies.find(x => x.id === co) || {},
+    d = BATCH_DEF[co] || { p: '', s: 1 };
+  return { p: c.batchPrefix != null && c.batchPrefix !== '' ? c.batchPrefix : d.p, s: +c.batchStart || d.s };
+}
+const batchKey = s =>
+  String(s || '')
+    .toLowerCase()
+    .replace(/[\s.#:_\-]+/g, '');
+/* number of a ref written with the account prefix ("rasool no.87", "Rasool No 87" → 87), else null */
+function batchNo(ref, cfg) {
+  cfg = cfg || batchCfg();
+  if (!cfg.p) return null;
+  const m = String(ref || '').match(/(\d+)\s*$/);
+  if (!m) return null;
+  return batchKey(String(ref).slice(0, m.index)) === batchKey(cfg.p) ? +m[1] : null;
+}
+const lastBatch = () => S.orders.reduce((mx, o) => Math.max(mx, batchNo(o.ref) || 0), 0);
+const nextBatch = () => Math.max(lastBatch() + 1, batchCfg().s);
+const batchUsed = (n, exceptId) => S.orders.find(o => o.id !== exceptId && batchNo(o.ref) === n);
 const orderLabel = o => (o ? (o.ref || 'بدون رقم') + ' · ' + factoryName(o.factoryId) : '—');
 const carrOpen = (c, o) => {
   if (c && +c.openBal) addTo(o, c.openCur || 'USD', +c.openBal);

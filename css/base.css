@@ -572,6 +572,43 @@ tr.click:hover td {
 .fld.full {
   grid-column: 1/-1;
 }
+/* batch number: fixed prefix + number */
+.bno {
+  display: flex;
+  align-items: center;
+  direction: ltr;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--glass);
+  overflow: hidden;
+}
+.bno:focus-within {
+  border-color: var(--accent);
+}
+.bno .pre {
+  padding-inline-start: 12px;
+  color: var(--mute);
+  white-space: pre;
+  font-weight: 600;
+}
+.fld .bno input {
+  border: 0;
+  background: none;
+  border-radius: 0;
+  padding-inline-start: 2px;
+  font-weight: 700;
+  flex: 1;
+}
+.bnoh {
+  font-size: 12.5px;
+  color: var(--mute);
+  min-height: 1em;
+}
+.fld .link.sm {
+  font-size: 13px;
+  color: var(--accent);
+  align-self: flex-start;
+}
 .chk {
   flex-direction: row;
   align-items: center;

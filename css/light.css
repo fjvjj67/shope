@@ -218,3 +218,6 @@ body {
   background: var(--glass);
   font-size: 16px;
 }
+html[data-ui='light'] .ph-sep {
+  background: var(--line);
+}

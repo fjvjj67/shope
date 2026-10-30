@@ -122,7 +122,7 @@ function companyForm(c0, back) {
   const e = c0 || {};
   openModal(
     c0 ? 'تعديل الحساب' : 'حساب جديد',
-    `${fld('اسم الحساب (مثلاً كوانزو أو ايو)', inp('name', e.name, 'text', 'required'))}${fld('ملاحظات', ta('note', e.note))}<div class="hint">كل حساب منفصل بالكامل: مصانعه وطلباته ودفعاته وشركة الشحن مالته. تبدّل بين الحسابات من الزر اللي فوك.</div>`,
+    `${fld('اسم الحساب (مثلاً كوانزو أو ايو)', inp('name', e.name, 'text', 'required'))}<div class="grid2">${fld('بادئة رقم الوجبة', inp('batchPrefix', e.id ? batchCfg(e.id).p : '', 'text', 'dir="ltr" placeholder="مثلاً ZA أو rasool no." style="white-space:pre"'))}${fld('أول رقم للوجبات', inp('batchStart', e.id ? batchCfg(e.id).s : +e.batchStart || 1, 'number', 'step="1"'))}</div><div class="hint" style="margin-top:-4px">النظام يقترح الرقم الجاي لحاله: أعلى رقم مسجّل + 1، وما يقبل رقم مكرر بنفس الحساب. اكتب المسافة إذا تريدها بين البادئة والرقم (مثلاً «ZA » يطلع ZA 136).</div>${fld('ملاحظات', ta('note', e.note))}<div class="hint">كل حساب منفصل بالكامل: مصانعه وطلباته ودفعاته وشركة الشحن مالته. تبدّل بين الحسابات من الزر اللي فوك.</div>`,
     {
       back,
       del: c0 && !c0.virtual && c0.id !== DEFAULT_CO ? ['companies', c0.id] : null,
@@ -145,6 +145,8 @@ function companyForm(c0, back) {
           openCNY: +e.openCNY || 0,
           limitUSD: +e.limitUSD || 0,
           limitCNY: +e.limitCNY || 0,
+          batchPrefix: f.elements.batchPrefix.value.replace(/^\s+/, ''),
+          batchStart: Math.max(1, parseInt(val(f, 'batchStart'), 10) || 1),
           note: val(f, 'note')
         });
         closeModal();

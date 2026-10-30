@@ -273,6 +273,9 @@ function orderForm(o0, back) {
     factoryId: byId('factories', lastF) ? lastF : S.factories[0] ? S.factories[0].id : ''
   };
   const noF = !S.factories.length;
+  const bc = batchCfg(),
+    bn0 = o0 ? batchNo(e.ref, bc) : nextBatch(),
+    useB = !!bc.p && bn0 != null;
   const body = `<div class="grid2 og">
     <div class="fld wide"><span>المصنع</span><div class="frow">${
       noF
@@ -287,7 +290,7 @@ function orderForm(o0, back) {
           )
     }${CANEDIT ? `<button type="button" class="btn ghost sm" data-act="nf-toggle"${noF ? ' hidden' : ''}>${ico('plus', 14)} مصنع جديد</button>` : ''}</div>
       <div class="nfbox" id="nfBox"${noF ? '' : ' hidden'}>${inp('newFactory', '', 'text', 'placeholder="اكتب اسم المصنع الجديد" autocomplete="off"')}<small>ينضاف للمصانع تلقائياً وينربط بهذا الطلب.</small></div></div>
-    ${fld('رقم الطلب / الفاتورة', inp('ref', e.ref, 'text', 'required autocomplete="off"'), 'wide')}
+    <div class="fld wide"><span>رقم الوجبة</span><div class="bno" id="bnoBox"${useB ? '' : ' hidden'}><bdi dir="ltr" class="pre">${esc(bc.p)}</bdi><input id="f_bno" name="bno" type="number" inputmode="numeric" min="1" step="1" dir="ltr" value="${useB ? bn0 : ''}" autocomplete="off" aria-label="رقم الوجبة"></div><div id="refBox"${useB ? ' hidden' : ''}>${inp('ref', e.ref, 'text', 'autocomplete="off" dir="auto"')}</div><small class="bnoh" id="bnoH"></small>${bc.p ? `<button type="button" class="link sm" data-act="ref-mode">${useB ? 'اكتب رقم يدوي' : 'استخدم ترقيم الوجبات'}</button>` : ''}</div>
     ${fld('إجمالي الطلب', inp('total', o0 ? itemsTotal(e) || '' : '', 'number', 'placeholder="0"'))}
     ${
       e.currency === 'USD'
@@ -319,6 +322,30 @@ function orderForm(o0, back) {
       ATT_E = (o0 && o0.files) || [];
       renderAtt();
       initDur(f);
+      const bh = () => {
+        const h = $('#bnoH');
+        if (!h) return;
+        if ($('#bnoBox').hidden) {
+          h.innerHTML = '';
+          return;
+        }
+        const v = parseInt(f.elements.bno.value, 10),
+          last = lastBatch(),
+          nx = nextBatch();
+        h.innerHTML =
+          v > 0 && batchUsed(v, e.id)
+            ? `<span class="bad">الرقم مستخدم</span> · المقترح: ${nx}`
+            : v > nx
+              ? `<span class="warn">تتخطى أرقام: ${nx}${v - 1 > nx ? '–' + (v - 1) : ''}</span>`
+              : v > 0 && v < nx && !(o0 && v === bn0)
+                ? 'رقم قديم غير مستخدم'
+                : last
+                  ? `آخر وجبة: <bdi dir="ltr">${esc(bc.p + last)}</bdi> · المقترح: ${nx}`
+                  : `أول وجبة: <bdi dir="ltr">${esc(bc.p + nx)}</bdi>`;
+      };
+      f.elements.bno.addEventListener('input', bh);
+      f._bh = bh;
+      bh();
       $('#attachFile').addEventListener('change', ev => {
         const fl = [...ev.target.files];
         ev.target.value = '';
@@ -326,9 +353,24 @@ function orderForm(o0, back) {
       });
     },
     onSubmit: async f => {
-      const ref = val(f, 'ref');
-      if (!ref) {
-        ferr('اكتب رقم الطلب أو الفاتورة', 'ref');
+      const batchMode = !$('#bnoBox').hidden;
+      let ref = val(f, 'ref');
+      if (batchMode) {
+        const n = parseInt(f.elements.bno.value, 10);
+        if (!(n > 0) || String(n) !== f.elements.bno.value.trim()) {
+          ferr('اكتب رقم الوجبة', 'bno');
+          return;
+        }
+        if (batchUsed(n, e.id)) {
+          ferr('رقم الوجبة هذا مستخدم بطلب ثاني. الرقم المقترح ' + nextBatch(), 'bno');
+          return;
+        }
+        ref = bc.p + n;
+      } else if (!ref) {
+        ferr('اكتب رقم الطلب', 'ref');
+        return;
+      } else if (batchNo(ref, bc) != null && batchUsed(batchNo(ref, bc), e.id)) {
+        ferr('رقم الوجبة هذا مستخدم بطلب ثاني. الرقم المقترح ' + nextBatch(), 'ref');
         return;
       }
       const nfOpen = !$('#nfBox').hidden,

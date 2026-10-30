@@ -25,7 +25,7 @@ async function page(b,role,vw){const ctx=await b.newContext({viewport:vw||{width
  console.log('dbg',await p.evaluate(()=>{const e=document.querySelector('#view [data-act=w-in]');if(!e)return 'none';const r=e.getBoundingClientRect();const t=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return r.y+' '+r.height+' top='+(t&&(t.className||t.tagName))}));await p.evaluate(()=>document.querySelector('#view [data-act=w-in]').click());await p.waitForSelector('#mform');await p.fill('#f_wPaid','13350000');await p.fill('#f_wAmt','70000');await p.click('.modal .mf .btn:not(.ghost)');
  await p.waitForFunction(()=>S.ctx.length===1);ok(await p.evaluate(()=>walletBal(S.carriers[0].id).CNY===70000),'send money → wallet 70,000 ¥');
  await p.evaluate(()=>{go('orders');orderForm(null)});await p.waitForSelector('#nfBox');
- await p.fill('#f_newFactory','مصنع دريلات');await p.fill('#f_ref','A-1');await p.fill('#f_total','10000');await p.click('.modal .mf .btn:not(.ghost)');
+ await p.fill('#f_newFactory','مصنع دريلات');await p.click('[data-act=ref-mode]');await p.fill('#f_ref','A-1');await p.fill('#f_total','10000');await p.click('.modal .mf .btn:not(.ghost)');
  await p.waitForFunction(()=>S.orders.length===1&&S.factories.length===1);ok(await p.evaluate(()=>S.orders[0].currency==='CNY'),'order + factory created, RMB');
  await p.evaluate(()=>walletForm('pay',S.orders[0].id));await p.waitForSelector('#mform');await p.click('[data-act=w-seg][data-k=pm][data-v=full]');await p.click('.modal .mf .btn:not(.ghost)');
  await p.waitForFunction(()=>S.payments.length===1);ok(await p.evaluate(()=>walletBal(S.carriers[0].id).CNY===60000&&ordRem(S.orders[0])===0),'full payment via carrier: wallet 60,000, order paid');
@@ -45,7 +45,7 @@ async function page(b,role,vw){const ctx=await b.newContext({viewport:vw||{width
  const dr=await p.evaluate(async()=>{try{await remove('orders',S.orders[0].id);return 'ok'}catch(e){return 'blocked'}});ok(dr==='blocked','staff delete blocked');
  await p.evaluate(()=>{go('orders');document.querySelector('#topact [data-act=new-order]').click()});await p.waitForSelector('#mform');
  ok(await p.evaluate(()=>!!document.querySelector('[data-act=nf-toggle]')),'staff can add factories inline');
- await p.evaluate(()=>{const b=document.getElementById('nfBox');if(b&&b.hidden){const t=document.querySelector('[data-act=nf-toggle]');t&&t.click()}});if(await p.$('#f_newFactory'))await p.fill('#f_newFactory','义乌工厂');await p.fill('#f_ref','S-1');await p.fill('#f_total','500');await p.click('.modal .mf .btn:not(.ghost)');await p.waitForFunction(()=>S.orders.some(o=>o.ref==='S-1'));ok(await p.evaluate(()=>S.orders.every(o=>o.companyId==='yiwu')&&ACTIVE==='yiwu'&&S.companies.length===1),'staff can add order, locked to Yiwu');
+ await p.evaluate(()=>{const b=document.getElementById('nfBox');if(b&&b.hidden){const t=document.querySelector('[data-act=nf-toggle]');t&&t.click()}});if(await p.$('#f_newFactory'))await p.fill('#f_newFactory','义乌工厂');await p.click('[data-act=ref-mode]');await p.fill('#f_ref','S-1');await p.fill('#f_total','500');await p.click('.modal .mf .btn:not(.ghost)');await p.waitForFunction(()=>S.orders.some(o=>o.ref==='S-1'));ok(await p.evaluate(()=>S.orders.every(o=>o.companyId==='yiwu')&&ACTIVE==='yiwu'&&S.companies.length===1),'staff can add order, locked to Yiwu');
  ok(await p.evaluate(()=>NAV.filter(navOk).map(n=>n[0]).includes('companies')&&!NAV.filter(navOk).map(n=>n[0]).includes('users')),'staff: accounts yes, users no');
  ok(errs.length===0,'staff js errors: '+errs);await ctx.close();
  // suspended

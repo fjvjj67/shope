@@ -230,6 +230,7 @@ async function ensureCarrier() {
   }
 }
 function stmtModal() {
+  if (!(WCAR && byId('carriers', WCAR)) && S.carriers[0]) WCAR = S.carriers[0].id;
   const c = WCAR && byId('carriers', WCAR);
   if (!c) return;
   const all = walletRows(c.id).slice().reverse();

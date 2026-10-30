@@ -101,6 +101,7 @@ function ordersList() {
       `<button class="btn" data-act="new-order">${ico('plus')} طلب جديد</button>`
     );
   if (!rows.length) return empty('لا نتائج', 'غيّر البحث أو التصفية.');
+  if (PHONE.matches) return phoneOrders(rows);
   return `<div class="ocards">${rows
     .map(r => {
       const t = r.i.total,
@@ -337,6 +338,7 @@ function dashboard() {
       if (ss.length && ss.every(s => s.status === 'arrived'))
         alerts.push({
           k: 'warn',
+          x: 1,
           t: `كل شحنات الطلب ${o.ref} وصلت. حدّث المرحلة إلى «مستلم»`,
           s: factoryName(o.factoryId),
           act: 'open-order',
@@ -348,6 +350,7 @@ function dashboard() {
     .forEach(s =>
       alerts.push({
         k: 'warn',
+        x: 1,
         t: `الشحنة ${s.ref} تجاوزت موعد الوصول المتوقع`,
         s: dueText(s.eta),
         act: 'edit-shipment',
@@ -371,6 +374,7 @@ function dashboard() {
     if (v.k === 'bad')
       alerts.push({
         k: 'bad',
+        x: 1,
         t: `الطلب ${r.o.ref} تجاوز موعد الاستلام`,
         s: fmtD(r.o.recvDate) + ' · ' + v.t,
         act: 'open-order',
@@ -391,6 +395,7 @@ function dashboard() {
       if (st.limit[k] && st.commit[k] > st.limit[k])
         alerts.push({
           k: 'bad',
+          x: 1,
           t: `التزامات «${coName(ACTIVE)}» تجاوزت الحد (${k === 'USD' ? '$' : '¥'})`,
           s: money(st.commit[k], k) + ' من ' + money(st.limit[k], k),
           act: 'open-company',
@@ -443,6 +448,7 @@ function dashboard() {
     .map(k => money(r2(zt[k] - (zp[k] || 0)), k))
     .join(' · ');
   const zhero = `<section class="zhero"><span class="zl">المتبقي للمصانع</span><div class="zbig">${num(r2(zT - zP))}<small>${CUR[zc] || zc}</small></div><div class="zbar" role="img" aria-label="مدفوع ${Math.round(zpp)} بالمئة"><i class="p" style="width:${zpp}%"></i><i class="s" style="width:${zsp}%"></i></div><div class="zsub"><span>مدفوع <b>${money(zP, zc)}</b></span><span>من <b>${money(zT, zc)}</b></span></div>${zOther ? `<div class="zsub"><span>وبعملة ثانية: <b>${zOther}</b></span></div>` : ''}</section>`;
+  if (PHONE.matches) return welcome + phoneHome({ alerts, lateP, late, ready, zT, zP, zc, zOther });
   return `${nudge}<div class="dash">
   <div class="d-hero">${zhero}</div>
   ${carriersView(true)}
@@ -485,6 +491,67 @@ function dashboard() {
     }</ul></div>
   </div>
   </div>`;
+}
+/* ===== Phone (≤700px): simpler home + one-line orders. Laptop keeps the full dashboard. ===== */
+const PHONE = window.matchMedia ? window.matchMedia('(max-width: 700px)') : { matches: false };
+try {
+  PHONE.addEventListener('change', () => typeof render === 'function' && render());
+} catch (e) {}
+const refH = r => '<bdi dir="ltr">' + esc(r || 'بدون رقم') + '</bdi>';
+function phoneHome(d) {
+  const rows = [];
+  d.lateP.forEach(p => {
+    const o = byId('orders', p.orderId);
+    rows.push({ k: 'bad', t: 'دفعة ' + refH(o && o.ref) + ' متأخرة', s: esc(o ? factoryName(o.factoryId) : '') + ' · ' + money(p.amount, o && o.currency) + ' · ' + esc(dueText(p.dueDate)), b: 'سدّد', act: 'pay-now', id: p.id, main: 1 });
+  });
+  pendList().forEach(x => {
+    const dd = diffDays(x.date || todayISO());
+    rows.push({ k: 'warn', t: 'حوالة بالانتظار', s: num(x.paid) + ' ' + (x.payCur === 'IQD' ? 'د.ع' : '$') + ' · ' + (dd < 0 ? 'صارلها ' + plural(-dd) : 'اليوم'), b: 'وصلت ✓', act: 'w-confirm', id: x.id });
+  });
+  d.late.forEach(r => rows.push({ k: 'bad', t: refH(r.o.ref) + ' متأخر بالتجهيز', s: esc(factoryName(r.o.factoryId)) + ' · ' + esc(dueText(r.o.prepDate)), b: 'افتح', act: 'open-order', id: r.o.id }));
+  d.ready
+    .filter(r => !S.shipments.some(x => x.orderId === r.o.id))
+    .forEach(r => rows.push({ k: 'warn', t: refH(r.o.ref) + ' جاهز، ما مسجل شحنة', s: esc(factoryName(r.o.factoryId)), b: 'شحنة', act: 'new-shipment', order: r.o.id }));
+  S.payments
+    .filter(p => !p.paid && p.dueDate && diffDays(p.dueDate) >= 0 && diffDays(p.dueDate) <= 3)
+    .forEach(p => {
+      const o = byId('orders', p.orderId);
+      rows.push({ k: 'warn', t: 'دفعة ' + refH(o && o.ref) + ' تستحق قريباً', s: money(p.amount, o && o.currency) + ' · ' + esc(dueText(p.dueDate)), b: 'سدّد', act: 'pay-now', id: p.id, main: 1 });
+    });
+  d.alerts.filter(a => a.x).forEach(a => rows.push({ k: a.k, t: esc(a.t), s: a.s, b: 'افتح', act: a.act, id: a.id }));
+  const bal = {};
+  S.carriers.forEach(c => {
+    const w = walletBal(c.id);
+    Object.keys(w).forEach(k => addTo(bal, k, w[k]));
+  });
+  const bc = r2(bal.CNY || 0),
+    bOther = Object.keys(bal).filter(k => k !== 'CNY' && Math.abs(bal[k]) > 0.001),
+    rem = r2(d.zT - d.zP),
+    pp = d.zT ? Math.min(100, (d.zP / d.zT) * 100) : 0;
+  const shown = rows.slice(0, 6);
+  return `<section class="zhero ph-hero"><div class="ph-two"><div><span class="zl">${S.carriers.length > 1 ? 'رصيدك عند شركات الشحن' : 'رصيدك عند الشركة'}</span><b class="${bc < 0 ? 'neg' : 'pos'}">${money(Math.abs(bc), 'CNY')}</b><small>${S.carriers.length ? (bc < 0 ? 'عليك لهم' : 'لك عندهم') : 'ما مضاف شركة شحن'}${bOther.length ? ' · ' + bOther.map(k => (bal[k] < 0 ? 'عليك ' : 'لك ') + money(Math.abs(bal[k]), k)).join(' · ') : ''}</small></div><i class="ph-sep"></i><div><span class="zl">المتبقي للمصانع</span><b>${money(rem, d.zc)}</b><small>من ${money(d.zT, d.zc)}${d.zOther ? ' · ' + d.zOther : ''}</small></div></div><div class="zbar" role="img" aria-label="مدفوع ${Math.round(pp)} بالمئة"><i class="p" style="width:${pp}%"></i></div></section>
+  ${CANEDIT ? WACTS() : ''}
+  <div class="card ph-att"><h3>يحتاج انتباهك ${rows.length ? pill('bad', rows.length) : ''}</h3>${
+    shown
+      .map(
+        x =>
+          `<div class="ph-row"><span class="dot ${x.k}"></span><div class="t"><b>${x.t}</b><small>${x.s}</small></div>${CANEDIT || x.act === 'open-order' ? `<button class="btn sm${x.main ? '' : ' ghost'}" data-act="${x.act}"${x.id ? ` data-id="${x.id}"` : ''}${x.order ? ` data-order="${x.order}"` : ''}>${x.b}</button>` : ''}</div>`
+      )
+      .join('') || '<p class="ph-empty">ماكو شي يحتاج انتباه ✓</p>'
+  }${rows.length > shown.length ? `<button class="btn ghost sm ph-all" data-act="nav" data-view="orders" data-st="open">+${rows.length - shown.length} بالطلبات</button>` : ''}</div>
+  ${S.carriers.length ? `<button class="card ph-link" data-act="w-stmt"><span>كشف حساب شركة الشحن</span><span aria-hidden="true">‹</span></button>` : ''}`;
+}
+function phoneOrders(rows) {
+  return `<div class="card ph-list">${rows
+    .map(r => {
+      const t = r.i.total,
+        done = t && r.i.remaining <= 0.001,
+        lt = r.i.timing && r.i.timing.k === 'bad',
+        k = lt || r.i.pay[0] === 'bad' ? 'bad' : done && r.o.stage === 'received' ? 'ok' : STAGE_K[r.o.stage];
+      const st = lt ? r.i.timing.t : r.i.pay[0] === 'bad' ? 'دفعة متأخرة' : stageName(r.o.stage);
+      return `<button type="button" class="ph-row" data-act="open-order" data-id="${r.o.id}"><span class="dot ${k}"></span><div class="t"><b>${refH(r.o.ref)} · ${esc(factoryName(r.o.factoryId))}</b><small>${fmtD(r.o.orderDate)} · ${esc(st)}${(r.o.files || []).length ? ' · 📎' : ''}</small></div><span class="am ${done ? 'ok' : lt || r.i.pay[0] === 'bad' ? 'bad' : ''}">${!t ? '—' : done ? '✓ مدفوع' : money(r.i.remaining, r.o.currency)}</span></button>`;
+    })
+    .join('')}</div>`;
 }
 function factoriesView() {
   if (!S.factories.length)

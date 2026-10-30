@@ -336,6 +336,19 @@ document.addEventListener('click', e => {
       document.querySelectorAll('[data-act=sh-st]').forEach(b => b.setAttribute('aria-pressed', b === t));
       break;
     }
+    case 'ref-mode': {
+      const f = $('#mform'),
+        bb = $('#bnoBox'),
+        rb = $('#refBox'),
+        toB = bb.hidden;
+      bb.hidden = !toB;
+      rb.hidden = toB;
+      if (toB && !f.elements.bno.value) f.elements.bno.value = nextBatch();
+      t.textContent = toB ? 'اكتب رقم يدوي' : 'استخدم ترقيم الوجبات';
+      if (f._bh) f._bh();
+      (toB ? f.elements.bno : f.elements.ref).focus();
+      break;
+    }
     case 'new-shipment': {
       const o = d.order;
       shipmentForm(null, o, o ? () => openOrder(o) : null);
