@@ -325,7 +325,7 @@ function dashboard() {
     if (d <= -2)
       alerts.push({
         k: 'warn',
-        t: 'حوالة بالانتظار: ' + num(x.paid) + ' ' + (x.payCur === 'IQD' ? 'د.ع' : '$'),
+        t: x.paid ? 'حوالة بالانتظار: ' + paidTxt(x) : 'حوالة بالانتظار',
         s: 'صارلها ' + plural(-d) + ' وما أكدت وصولها',
         act: 'w-confirm',
         id: x.id
@@ -506,7 +506,7 @@ function phoneHome(d) {
   });
   pendList().forEach(x => {
     const dd = diffDays(x.date || todayISO());
-    rows.push({ k: 'warn', t: 'حوالة بالانتظار', s: num(x.paid) + ' ' + (x.payCur === 'IQD' ? 'د.ع' : '$') + ' · ' + (dd < 0 ? 'صارلها ' + plural(-dd) : 'اليوم'), b: 'وصلت ✓', act: 'w-confirm', id: x.id });
+    rows.push({ k: 'warn', t: 'حوالة بالانتظار', s: (x.paid ? paidTxt(x) + ' · ' : '') + (dd < 0 ? 'صارلها ' + plural(-dd) : 'اليوم'), b: 'وصلت ✓', act: 'w-confirm', id: x.id });
   });
   d.late.forEach(r => rows.push({ k: 'bad', t: refH(r.o.ref) + ' متأخر بالتجهيز', s: esc(factoryName(r.o.factoryId)) + ' · ' + esc(dueText(r.o.prepDate)), b: 'افتح', act: 'open-order', id: r.o.id }));
   d.ready

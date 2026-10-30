@@ -119,6 +119,8 @@ function balLine(b) {
   return k.map(c => (b[c] < 0 ? 'عليك ' + money(-b[c], c) : money(b[c], c))).join(' · ');
 }
 /* running balance under each statement line: «عليك ¥X» (red) / «لك ¥X» (green) */
+/* a transfer may be saved without the dinar/dollar amount paid (كم دفعت اختياري) */
+const paidTxt = x => (x.paid ? num(x.paid) + ' ' + (x.payCur === 'IQD' ? 'د.ع' : '$') : '');
 const stmtBal = (b, c) =>
   Math.abs(b) < 0.005
     ? `<small class="bal">${money(0, c)}</small>`
@@ -142,7 +144,7 @@ function pendCard(c) {
   return `<div class="card pend"><h3>حوالات بالانتظار ${pill('warn', L.length)}</h3>${L.map(x => {
     const d = diffDays(x.date || todayISO());
     const rc = (x.files || [])[0];
-    return `<div class="wtx wait"><span class="ic">⏳</span><div class="t"><b>دفعت ${num(x.paid)} ${x.payCur === 'IQD' ? 'د.ع' : '$'}${rc ? ` <button type="button" class="rcbtn" data-act="view-rc" data-id="${rc.id}" aria-label="صورة الوصل">🧾</button>` : ''}</b><small>${fmtD(x.date)} · ${d < 0 ? 'صارلها ' + plural(-d) : 'اليوم'}${x.amt ? ' · متوقع ' + money(x.amt, x.cur) : ''}${x.note ? ' · ' + esc(x.note) : ''}</small></div><div class="r"><button type="button" class="btn sm" data-act="w-confirm" data-id="${x.id}">وصلت ✓</button>${ADMIN ? `<button class="icon" style="width:30px;height:30px" data-act="del-ask" data-col="ctx" data-id="${x.id}" aria-label="حذف">${ico('trash', 14)}</button>` : ''}</div></div>`;
+    return `<div class="wtx wait"><span class="ic">⏳</span><div class="t"><b>${x.paid ? 'دفعت ' + paidTxt(x) : 'حوالة بالانتظار'}${rc ? ` <button type="button" class="rcbtn" data-act="view-rc" data-id="${rc.id}" aria-label="صورة الوصل">🧾</button>` : ''}</b><small>${fmtD(x.date)} · ${d < 0 ? 'صارلها ' + plural(-d) : 'اليوم'}${x.amt ? ' · متوقع ' + money(x.amt, x.cur) : ''}${x.note ? ' · ' + esc(x.note) : ''}</small></div><div class="r"><button type="button" class="btn sm" data-act="w-confirm" data-id="${x.id}">وصلت ✓</button>${ADMIN ? `<button class="icon" style="width:30px;height:30px" data-act="del-ask" data-col="ctx" data-id="${x.id}" aria-label="حذف">${ico('trash', 14)}</button>` : ''}</div></div>`;
   }).join('')}</div>`;
 }
 function confirmForm(id) {
@@ -150,7 +152,7 @@ function confirmForm(id) {
   if (!x) return;
   openModal(
     'تأكيد وصول الحوالة',
-    `<div class="hint">دفعت ${num(x.paid)} ${x.payCur === 'IQD' ? 'د.ع' : '$'} بتاريخ ${fmtD(x.date)}</div>${fld('كم سجلوا لك بالرمبي (¥)؟', inp('wAmt', x.cur === 'CNY' && x.amt ? x.amt : '', 'number', 'required'))}${fld('تاريخ الوصول', inp('wDate', todayISO(), 'date'))}<p class="hint" id="cHint"></p>`,
+    `<div class="hint">${x.paid ? 'دفعت ' + paidTxt(x) : 'حوالة'} بتاريخ ${fmtD(x.date)}</div>${fld('كم سجلوا لك بالرمبي (¥)؟', inp('wAmt', x.cur === 'CNY' && x.amt ? x.amt : '', 'number', 'required'))}${fld('تاريخ الوصول', inp('wDate', todayISO(), 'date'))}<p class="hint" id="cHint"></p>`,
     {
       onOpen: f => {
         WS = { kind: 'confirm', ist: 'ok', pc: x.payCur, cur: 'CNY', car: x.carrierId };
@@ -521,7 +523,7 @@ function walletForm(kind, orderId) {
         ['wait', 'بالانتظار']
       ],
       'ok'
-    )}</div>${fld('كم دفعت بالعراق؟', inp('wPaid', '', 'number'))}${seg(
+    )}</div>${fld('كم دفعت بالعراق؟ (اختياري)', inp('wPaid', '', 'number'))}${seg(
       'pc',
       [
         ['IQD', 'دينار'],
@@ -594,8 +596,8 @@ function walletForm(kind, orderId) {
       }
       if (kind === 'in') {
         const paid = r2(num2(f.elements.wPaid.value));
-        if (!(paid > 0)) {
-          ferr('اكتب كم دفعت', 'wPaid');
+        if (!(paid > 0) && !(amt > 0)) {
+          ferr('اكتب كم دفعت أو كم سجلوا لك', 'wPaid');
           return;
         }
         const id = newId('ctx'),
