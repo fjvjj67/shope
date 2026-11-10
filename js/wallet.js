@@ -558,7 +558,7 @@ function walletForm(kind, orderId) {
         ['part', 'دفعة جزئية']
       ],
       'part'
-    )}${fld('المبلغ (بعملة الطلب)', inp('wAmt', '', 'number'))}<div class="chips" id="wPct">${[30, 50, 70].map(x => `<button type="button" class="chip" data-act="w-pct" data-v="${x}">${x}%</button>`).join('')}</div><div class="fld" id="wXtra" hidden><span>الزيادة على المتبقي شنو هي؟</span>${seg('xt', XT_OPTS, 'نقل')}</div>${fld('تاريخ الدفع', inp('wDate', todayISO(), 'date'))}<p class="hint" id="wHint"></p>`;
+    )}${fld('المبلغ (بعملة الطلب)', inp('wAmt', '', 'number'))}<div class="chips" id="wPct">${[30, 50, 70].map(x => `<button type="button" class="chip" data-act="w-pct" data-v="${x}">${x}%</button>`).join('')}</div><div class="fld" id="wXtra" hidden><span>الزيادة على المتبقي شنو هي؟</span>${seg('xt', XT_OPTS, 'نقل')}${inp('wXNote', '', 'text', 'placeholder="اكتب شنو الزيادة (اختياري)"')}</div>${fld('تاريخ الدفع', inp('wDate', todayISO(), 'date'))}<p class="hint" id="wHint"></p>`;
   } else {
     title = 'شحن ونقل';
     body += `${seg(
@@ -696,7 +696,7 @@ function walletForm(kind, orderId) {
             amt: extra,
             cur: o.currency || 'CNY',
             date,
-            note: 'ويا دفعة الطلب',
+            note: val(f, 'wXNote') || 'ويا دفعة الطلب',
             at: Date.now()
           });
       } else

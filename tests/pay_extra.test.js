@@ -30,16 +30,16 @@ const L=s=>console.log('step',s);const save=p=>p.click('.modal .mf .btn:not(.gho
  await p.waitForTimeout(500);await p.evaluate(()=>{closeModal(true);walletForm('pay',S.orders[0].id)});await p.waitForSelector('#mform',{state:'attached'});await p.fill('#f_wAmt','8000');await p.waitForTimeout(100);
  ok(await p.evaluate(()=>!document.querySelector('#wXtra').hidden),'extra picker appears');
  const hint=await p.textContent('#wHint');ok(/الزيادة 1,000 تنسجل نقل من المصنع/.test(hint),'hint explains the extra: '+hint);
- await p.screenshot({path:OS.tmpdir()+'/payx_admin.png'});
+ await p.fill('#f_wXNote','نقل من المصنع للمخزن');await p.screenshot({path:OS.tmpdir()+'/payx_admin.png'});
  await save(p);await p.waitForFunction(()=>S.payments.length===2&&S.ctx.length===2);
  ok(await p.evaluate(()=>ordRem(S.orders[0])===0),'order exactly paid (remaining 0, not negative)');
  ok(await p.evaluate(()=>S.payments.map(x=>+x.amount).sort((a,b)=>a-b).join()==='3000,7000'),'payment recorded = remaining 7,000');
- ok(await p.evaluate(o=>{const f=S.ctx.find(x=>x.type==='fee');return f&&f.ft==='نقل'&&+f.amt===1000&&f.orderId===S.orders[0].id&&f.carrierId===o},cid),'1,000 recorded as transport on same order + company');
+ ok(await p.evaluate(o=>{const f=S.ctx.find(x=>x.type==='fee');return f&&f.ft==='نقل'&&f.note==='نقل من المصنع للمخزن'&&+f.amt===1000&&f.orderId===S.orders[0].id&&f.carrierId===o},cid),'1,000 recorded as transport on same order + company');
  ok(await p.evaluate(o=>walletBal(o).CNY===59000,cid),'wallet down by full 11,000 → 59,000');
  // already fully paid: everything typed is extra; choose "أخرى"
  await p.waitForTimeout(500);await p.evaluate(()=>{closeModal(true);walletForm('pay',S.orders[0].id)});await p.waitForSelector('#mform',{state:'attached'});await p.fill('#f_wAmt','500');
  await p.click('[data-act=w-seg][data-k=xt][data-v="أخرى"]');await save(p);await p.waitForFunction(()=>S.ctx.length===3);
- ok(await p.evaluate(()=>S.payments.length===2&&S.ctx.some(x=>x.ft==='أخرى'&&+x.amt===500)),'paid order: whole amount → other fee, no 0 payment');
+ ok(await p.evaluate(()=>S.payments.length===2&&S.ctx.some(x=>x.ft==='أخرى'&&+x.amt===500&&x.note==='ويا دفعة الطلب')),'paid order: whole amount → other fee, no 0 payment');
  ok(await p.evaluate(o=>walletBal(o).CNY===58500,cid),'wallet 58,500');
  ok(errs.length===0,'admin js errors '+errs.join('|'));
  const store=await p.evaluate(()=>localStorage.getItem('mockdb'));await ctx.close();
@@ -48,7 +48,7 @@ const L=s=>console.log('step',s);const save=p=>p.click('.modal .mf .btn:not(.gho
  await p.waitForFunction(()=>typeof LOADS!=='undefined'&&LOADS.every(c=>loaded[c]));
  const n=await p.evaluate(()=>S.orders.length);
  if(n){await p.waitForTimeout(500);await p.evaluate(()=>{closeModal(true);walletForm('pay',S.orders[0].id)});await p.waitForSelector('#mform',{state:'attached'});await p.fill('#f_wAmt','100');await p.waitForTimeout(600);
-  const t=await p.evaluate(()=>document.querySelector('#wXtra').innerText+' | '+document.querySelector('#wHint').innerText);
+  const t=await p.evaluate(()=>document.querySelector('#wXtra').innerText+' | '+document.querySelector('#f_wXNote').placeholder+' | '+document.querySelector('#wHint').innerText);
   ok(/超出剩余的部分是什么/.test(t)&&/从工厂转运/.test(t)&&!/[؀-ۿ]/.test(t),'staff sees Chinese: '+t);
   await p.screenshot({path:OS.tmpdir()+'/payx_staff.png'});
  } else console.log('note: staff company has no orders (admin data was main) - chinese check skipped');
