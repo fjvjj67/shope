@@ -1912,3 +1912,9 @@ body.lockco [data-act='edit-company'] {
 .acct-got b{font-size:28px;color:var(--ok)}
 .acct-sum span:last-child{color:var(--mute)}
 .tx-row .t .tx-y{color:var(--ok);font-size:18px}
+.paychip{display:inline-block;margin-top:6px;padding:3px 9px;border-radius:9px;border:0;background:rgba(240,180,60,.14);color:var(--warn);font:inherit;font-size:13px;cursor:pointer;text-align:start}
+.pd-sum b{white-space:nowrap}
+.pd-sum span{color:var(--fg)}
+.pd-sum small{color:var(--mute)}
+.pd-tot{border-top:1px solid var(--line);padding-top:8px}
+.pd-tot b{font-size:20px}

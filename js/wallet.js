@@ -803,10 +803,11 @@ function walletForm(kind, orderId) {
           return;
         }
         // one entry, two records: the order gets exactly its remaining, the extra is a fee on the same order
-        const part = r2(amt - extra);
+        const part = r2(amt - extra),
+          pid = part > 0 ? newId('payments') : '';
         if (part > 0)
           await put('payments', {
-            id: newId('payments'),
+            id: pid,
             createdAt: Date.now(),
             orderId: o.id,
             label: WS.pm === 'full' || extra ? 'دفعة كاملة' : '',
@@ -825,6 +826,7 @@ function walletForm(kind, orderId) {
             ft: WS.xt,
             carrierId: WS.car,
             orderId: o.id,
+            payId: pid,
             amt: extra,
             cur: o.currency || 'CNY',
             date,

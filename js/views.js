@@ -21,8 +21,9 @@ function openOrder(id) {
     const plan = payPlan(o);
     const pays = plan
       .map(x => {
-        const p = x.p;
-        return `<li><div class="t"><b>${ordName(x.n)} · ${money(p.amount, o.currency)}${p.label ? ' <small>(' + esc(p.label) + ')</small>' : ''}</b><small>${p.paid ? 'سُدّدت ' + fmtD(p.paidDate) : 'تستحق ' + fmtD(p.dueDate)}${p.method ? ' · ' + esc(p.method) : ''} · يتبقى بعدها ${money(Math.max(x.after, 0), o.currency)}</small></div><div class="r">${p.paid ? pill('ok', 'مدفوعة') : pill(dueKind(p.dueDate), dueText(p.dueDate))}
+        const p = x.p,
+          pw = payWithExtras(p, o.currency);
+        return `<li><div class="t"><b>${ordName(x.n)} · ${money(pw.total, o.currency)}${p.label ? ' <small>(' + esc(p.label) + ')</small>' : ''}</b><small>${p.paid ? 'سُدّدت ' + fmtD(p.paidDate) : 'تستحق ' + fmtD(p.dueDate)}${p.method ? ' · ' + esc(p.method) : ''} · يتبقى بعدها ${money(Math.max(x.after, 0), o.currency)}</small>${pw.ex.length ? payChip(p, pw, o.currency) : ''}</div><div class="r">${p.paid ? pill('ok', 'مدفوعة') : pill(dueKind(p.dueDate), dueText(p.dueDate))}
       ${p.paid ? '' : `<button class="btn sm" data-act="pay-now" data-id="${p.id}">تسديد</button>`}<button class="icon" data-act="edit-payment" data-id="${p.id}" aria-label="تعديل">${ico('edit', 16)}</button></div></li>`;
       })
       .join('');
@@ -61,6 +62,45 @@ function openOrder(id) {
     });
   };
   mount();
+}
+
+/* a factory payment that carried extras: one total, tap for the split */
+function payChip(p, pw, cur) {
+  return `<button type="button" class="paychip" data-act="pay-detail" data-id="${p.id}">للطلب ${money(p.amount, cur)}${pw.ex.map(x => ' + ' + (FEE_SHORT[x.ft] || 'مصاريف') + ' ' + money(x.amt, x.cur)).join('')} ‹</button>`;
+}
+function payDetail(pid) {
+  const p = byId('payments', pid);
+  if (!p) return;
+  const o = byId('orders', p.orderId),
+    cur = o ? o.currency : 'CNY',
+    pw = payWithExtras(p, cur),
+    car = byId('carriers', p.via);
+  const fees = pw.ex
+    .map(
+      x =>
+        `<div><span>${x.ft === 'نقل' ? '🚚 نقل من المصنع' : x.ft === 'أخرى' ? 'مصاريف أخرى' : 'أجور شحن'}${x.note && x.note !== 'ويا دفعة الطلب' ? `<br><small>${esc(x.note)}</small>` : ''}</span><b>${money(x.amt, x.cur)}</b></div>`
+    )
+    .join('');
+  const allFees = o ? S.ctx.filter(x => x.type === 'fee' && x.orderId === o.id) : [];
+  const feeSum = r2(allFees.filter(x => (x.cur || 'CNY') === cur).reduce((a, x) => a + (+x.amt || 0), 0));
+  const btns = [
+    `<button class="btn ghost sm" type="button" data-act="edit-payment" data-id="${p.id}">${ico('edit', 14)} تعديل الدفعة</button>`,
+    ...(moneyEdit()
+      ? pw.ex.map(
+          x =>
+            `<button class="btn ghost sm" type="button" data-act="edit-ctx" data-id="${x.id}">${ico('edit', 14)} تعديل ${x.ft === 'نقل' ? 'النقل' : x.ft === 'أخرى' ? 'المصاريف' : 'الشحن'}</button>`
+        )
+      : [])
+  ].join('');
+  openModal(
+    'تفاصيل الدفعة · ' + (CUR[cur] || '') + num(pw.total),
+    `<div class="hint">${o ? esc(orderLabel(o)) + ' · ' : ''}سُدّدت ${fmtD(p.paidDate || p.dueDate)}${car ? ' عن طريق ' + esc(car.name) : ''}</div>
+     <div class="card" style="margin-top:6px"><div class="acct-sum pd-sum"><div><span>دفعة للمصنع (سعر الطلب)</span><b>${money(p.amount, cur)}</b></div>${fees}<div class="pd-tot"><span>المجموع اللي انخصم من رصيدك</span><b>${money(pw.total, cur)}</b></div></div></div>
+     ${o ? `<div class="card" style="margin-top:10px"><div class="acct-sum pd-sum"><div><span>الطلب بعد كل الدفعات</span><b style="color:var(--${ordRem(o) > 0.005 ? 'warn' : 'ok'})">${ordRem(o) > 0.005 ? 'باقي ' + money(ordRem(o), cur) : 'مدفوع بالكامل'}</b></div><div><span>مجموع النقل والمصاريف على هذا الطلب</span><b>${money(feeSum, cur)}</b></div></div></div>` : ''}
+     <div class="bar" style="margin-top:12px">${btns}</div>
+     <div class="mf" style="margin-top:14px"><button type="button" class="btn" data-act="close">إغلاق</button></div>`,
+    { back: o ? () => openOrder(o.id) : null }
+  );
 }
 
 /* cartons at the shipping company's warehouse (China): total on the order, arrivals in batches */
@@ -204,7 +244,7 @@ function paymentsList() {
   if (!rows.length) return sum + empty('لا نتائج', 'غيّر البحث أو التصفية.');
   return (
     sum +
-    `<table class="tbl"><thead><tr><th>الطلب</th><th>الدفعة</th><th class="n">المبلغ</th><th class="n">يتبقى بعدها</th><th>الاستحقاق</th><th>الحالة</th><th></th></tr></thead><tbody>${rows.map(r => `<tr><td data-label="الطلب"><button class="link" data-act="open-order" data-id="${r.p.orderId}"><b>${esc(r.o ? r.o.ref : '—')}</b><br><small style="color:var(--mute)">${esc(r.o ? factoryName(r.o.factoryId) : '')}</small></button></td><td data-label="الدفعة"><b>${ordName(r.x.n)}</b> <small style="color:var(--mute)">من ${r.cnt}</small>${r.p.label ? '<br><small style="color:var(--mute)">' + esc(r.p.label) + '</small>' : ''}</td><td class="n" data-label="المبلغ">${money(r.p.amount, r.o && r.o.currency)}</td><td class="n" data-label="يتبقى بعدها">${money(Math.max(r.x.after, 0), r.o && r.o.currency)}</td><td data-label="الاستحقاق">${r.p.paid ? 'سُدّدت ' + fmtD(r.p.paidDate) : fmtD(r.p.dueDate) + '<br><small style="color:var(--mute)">' + dueText(r.p.dueDate) + '</small>'}</td><td data-label="الحالة">${pill(r.s[0], r.s[1])}</td><td class="nolab"><div class="acts">${r.p.paid ? '' : `<button class="btn sm" data-act="pay-now" data-id="${r.p.id}">تسديد</button>`}<button class="icon" data-act="edit-payment" data-id="${r.p.id}" aria-label="تعديل">${ico('edit', 16)}</button><button class="icon" data-act="del-ask" data-col="payments" data-id="${r.p.id}" aria-label="حذف">${ico('trash', 16)}</button></div></td></tr>`).join('')}</tbody></table>`
+    `<table class="tbl"><thead><tr><th>الطلب</th><th>الدفعة</th><th class="n">المبلغ</th><th class="n">يتبقى بعدها</th><th>الاستحقاق</th><th>الحالة</th><th></th></tr></thead><tbody>${rows.map(r => `<tr><td data-label="الطلب"><button class="link" data-act="open-order" data-id="${r.p.orderId}"><b>${esc(r.o ? r.o.ref : '—')}</b><br><small style="color:var(--mute)">${esc(r.o ? factoryName(r.o.factoryId) : '')}</small></button></td><td data-label="الدفعة"><b>${ordName(r.x.n)}</b> <small style="color:var(--mute)">من ${r.cnt}</small>${r.p.label ? '<br><small style="color:var(--mute)">' + esc(r.p.label) + '</small>' : ''}</td><td class="n" data-label="المبلغ">${(pw => (pw.ex.length ? money(pw.total, r.o && r.o.currency) + '<br>' + payChip(r.p, pw, r.o && r.o.currency) : money(r.p.amount, r.o && r.o.currency)))(payWithExtras(r.p, r.o && r.o.currency))}</td><td class="n" data-label="يتبقى بعدها">${money(Math.max(r.x.after, 0), r.o && r.o.currency)}</td><td data-label="الاستحقاق">${r.p.paid ? 'سُدّدت ' + fmtD(r.p.paidDate) : fmtD(r.p.dueDate) + '<br><small style="color:var(--mute)">' + dueText(r.p.dueDate) + '</small>'}</td><td data-label="الحالة">${pill(r.s[0], r.s[1])}</td><td class="nolab"><div class="acts">${r.p.paid ? '' : `<button class="btn sm" data-act="pay-now" data-id="${r.p.id}">تسديد</button>`}<button class="icon" data-act="edit-payment" data-id="${r.p.id}" aria-label="تعديل">${ico('edit', 16)}</button><button class="icon" data-act="del-ask" data-col="payments" data-id="${r.p.id}" aria-label="حذف">${ico('trash', 16)}</button></div></td></tr>`).join('')}</tbody></table>`
   );
 }
 function shipmentsList() {

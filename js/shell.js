@@ -271,6 +271,9 @@ document.addEventListener('click', e => {
       ACCT_M = d.v;
       render();
       break;
+    case 'pay-detail':
+      payDetail(id);
+      break;
     case 'edit-ctx':
       ctxEditForm(id);
       break;

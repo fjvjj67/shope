@@ -161,3 +161,23 @@ function ctnInfo(o) {
     got = list.reduce((a, x) => a + (Math.round(+x.n) || 0), 0);
   return { total, got, left: total ? Math.max(0, total - got) : 0, extra: total ? Math.max(0, got - total) : 0, list };
 }
+
+/* extras (transport, shipping…) paid together with a factory payment: linked by payId; older entries match
+   by same order + same shipping company + same date (first such payment of that day) */
+function payExtras(p) {
+  if (!p || !p.paid) return [];
+  const linked = S.ctx.filter(x => x.type === 'fee' && x.payId === p.id);
+  if (linked.length) return linked;
+  if (!p.via) return [];
+  const d = p.paidDate || p.dueDate;
+  const first = S.payments.find(q => q.paid && q.orderId === p.orderId && q.via === p.via && (q.paidDate || q.dueDate) === d);
+  if (first !== p) return [];
+  return S.ctx.filter(x => x.type === 'fee' && !x.payId && x.orderId === p.orderId && x.carrierId === p.via && x.date === d);
+}
+const FEE_SHORT = { نقل: 'نقل', شحن: 'شحن', أخرى: 'أخرى' };
+function payWithExtras(p, cur) {
+  const ex = payExtras(p),
+    same = ex.filter(x => (x.cur || 'CNY') === (cur || 'CNY'));
+  const extra = r2(same.reduce((a, x) => a + (+x.amt || 0), 0));
+  return { ex, total: r2((+p.amount || 0) + extra), extra };
+}
