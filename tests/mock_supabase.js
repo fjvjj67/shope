@@ -1,6 +1,8 @@
 // Fake supabase-js for browser tests: in-memory tables + role enforcement similar to schema.sql
 (function(){
 const ROLE=window.__ROLE||'admin';
+// same list as the real database check constraint docs_col_ok (supabase/11_cartons.sql) — tests/db_cols.test.js keeps them in sync
+const DOC_COLS=['factories','orders','payments','carriers','shipments','activity','meta','companies','ledger','files','fchunks','ctx','ctn'];
 const STAFF_COLS=['factories','orders','payments','carriers','shipments','activity','companies','ledger','files','fchunks','ctx','ctn'];
 const users={ 'u-admin':{user_id:'u-admin',email:'admin@azawi.app',name:'المدير',role:'admin',created_at:'1'}, 'u-mem':{user_id:'u-mem',email:'staff@azawi.app',name:'الموظف',role:'staff',company:'yiwu',lang:'zh',created_at:'2'}, 'u-new':{user_id:'u-new',email:'x@azawi.app',name:'موقوف',role:'pending',created_at:'3'}};
 const me={admin:'u-admin',staff:'u-mem',pending:'u-new'}[ROLE];
@@ -28,7 +30,7 @@ function q(table){
       return f.single?{data:rows[0]||null,error:null}:{data:rows,error:null};
     }
     if(!['staff','admin'].includes(role())&&f.op!=='upsert')return {data:[],error:null,count:0};
-    if(f.op==='upsert'){const r=f.row; if(!canW(r.col))return {error:{message:'rls'}}; const i=st.docs.findIndex(d=>d.col===r.col&&d.id===r.id); if(i>=0)st.docs[i]=r; else st.docs.push(r); save(); notify('UPDATE',r); return {error:null}}
+    if(f.op==='upsert'){const r=f.row; if(!DOC_COLS.includes(r.col))return {error:{message:'docs_col_ok',code:'23514'}}; if(!canW(r.col))return {error:{message:'rls'}}; const i=st.docs.findIndex(d=>d.col===r.col&&d.id===r.id); if(i>=0)st.docs[i]=r; else st.docs.push(r); save(); notify('UPDATE',r); return {error:null}}
     if(f.op==='delete'){ if(role()!=='admin')return {error:null,count:0}; const before=st.docs.length; const gone=st.docs.filter(match); st.docs=st.docs.filter(d=>!match(d)); save(); gone.forEach(g=>notify('DELETE',g)); return {error:null,count:gone.length}}
     let rows=st.docs.filter(match).map(d=>({id:d.id,data:d.data}));if(f.rg)rows=rows.slice(f.rg[0],f.rg[1]+1);window.__pages=(window.__pages||0)+1;return f.single?{data:rows[0]||null,error:null}:{data:rows,error:null};
   }
