@@ -1903,8 +1903,8 @@ body.lockco [data-act='edit-company'] {
 .tx-row .t b{display:block;font-size:15px}
 .tx-row .t small{color:var(--mute)}
 .tx-row .r{display:flex;gap:6px;align-items:center}
-.tx-d{min-width:50px;text-align:center;background:rgba(255,255,255,.05);border-radius:12px;padding:6px 4px}
-.tx-d b{display:block;font-size:18px}
+.tx-d{min-width:58px;text-align:center;background:rgba(255,255,255,.05);border-radius:12px;padding:6px 4px}
+.tx-d b{display:block;font-size:16px;direction:ltr}
 .tx-d small{color:var(--mute);font-size:11px}
 [data-ui=light] .acct-stats>div,[data-ui=light] .tx-d{background:rgba(0,0,0,.05)}
 .acct-got{margin:4px 0 10px}

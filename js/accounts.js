@@ -272,8 +272,8 @@ function acctSummary(id) {
 }
 /* Accounts page: only the account picked at the top (كوانزو / ايو) + its money transfers to the shipping company */
 let ACCT_M = '';
-const MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
-const monthName = ym => MONTHS[+ym.slice(5, 7) - 1] + ' ' + ym.slice(0, 4);
+/* months as numbers (11/2026), quicker to read than names */
+const monthName = ym => ym.slice(5, 7) + '/' + ym.slice(0, 4);
 function companiesView() {
   const c = S.companies.find(x => x.id === ACTIVE) || S.companies[0];
   if (!c) return empty('ماكو حساب', '');
@@ -313,7 +313,7 @@ function transfersView() {
       ? `<b style="color:var(--warn)">⏳ بالانتظار</b>`
       : `<b class="tx-y">${money(x.amt, x.cur)}</b>`;
     const sub = [w ? (age > 0 ? 'صارلها ' + plural(age) : 'اليوم') : '', paid].filter(Boolean).join(' · ');
-    return `<div class="tx-row"><div class="tx-d"><b>${d.slice(8, 10) || '—'}</b><small>${d ? MONTHS[+d.slice(5, 7) - 1] : ''}</small></div><div class="t">${main}<small>${sub}${multiCar ? ' · ' + esc((byId('carriers', x.carrierId) || {}).name || '') : ''}${x.note ? ' · ' + esc(x.note) : ''}</small></div><div class="r">${rc ? `<button type="button" class="rcbtn" data-act="view-rc" data-id="${rc.id}" aria-label="صورة الوصل">🧾</button>` : ''}${w ? `<button type="button" class="btn sm" data-act="w-confirm" data-id="${x.id}">وصلت ✓</button>` : ''}${moneyEdit() ? `<button class="icon" style="width:30px;height:30px" data-act="edit-ctx" data-id="${x.id}" aria-label="تعديل">${ico('edit', 14)}</button>` : ''}</div></div>`;
+    return `<div class="tx-row"><div class="tx-d"><b>${d ? d.slice(8, 10) + '/' + d.slice(5, 7) : '—'}</b><small>${d.slice(0, 4)}</small></div><div class="t">${main}<small>${sub}${multiCar ? ' · ' + esc((byId('carriers', x.carrierId) || {}).name || '') : ''}${x.note ? ' · ' + esc(x.note) : ''}</small></div><div class="r">${rc ? `<button type="button" class="rcbtn" data-act="view-rc" data-id="${rc.id}" aria-label="صورة الوصل">🧾</button>` : ''}${w ? `<button type="button" class="btn sm" data-act="w-confirm" data-id="${x.id}">وصلت ✓</button>` : ''}${moneyEdit() ? `<button class="icon" style="width:30px;height:30px" data-act="edit-ctx" data-id="${x.id}" aria-label="تعديل">${ico('edit', 14)}</button>` : ''}</div></div>`;
   };
   return sumCard + `<div class="card" style="margin-top:12px">${list.length ? list.map(row).join('') : '<p style="color:var(--mute);margin:0">ما اكو تحويلات بهذا الشهر.</p>'}</div>`;
 }

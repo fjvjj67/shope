@@ -37,6 +37,7 @@ const store=JSON.stringify({docs:D});
  await p.screenshot({path:OS.tmpdir()+'/acc_main.png'});
  // previous month + all
  const months=await p.evaluate(()=>[...document.querySelectorAll('[data-act=acct-m]')].map(b=>b.dataset.v));ok(months.length===3&&months[2]==='all','month chips: '+months);
+ ok(await p.evaluate(ym=>document.querySelector('[data-act=acct-m]').textContent.trim()===ym.slice(5)+'/'+ym.slice(0,4)&&/^\d{2}\/\d{2}$/.test(document.querySelector('.tx-d b').textContent),ym),'months shown as numbers');
  await p.click(`[data-act=acct-m][data-v="${months[1]}"]`);await p.waitForTimeout(150);
  ok(await p.evaluate(()=>document.querySelectorAll('#view .tx-row').length===1),'last month: 1 transfer');
  await p.click('[data-act=acct-m][data-v=all]');await p.waitForTimeout(150);
@@ -52,7 +53,7 @@ const store=JSON.stringify({docs:D});
  // staff (Chinese, ايو only)
  ({p,ctx,errs}=await page(b,'staff',store));await p.evaluate(()=>go('companies'));await p.waitForTimeout(700);
  v=await p.evaluate(()=>document.querySelector('#view').innerText);
- ok(/汇款记录/.test(v)&&/11月|1[0-2]?月|\d月/.test(v)&&!/كوانزو/.test(v)&&!/[؀-ۿ]/.test(v.replace(/ايو|شركة/g,'')),'staff page in Chinese, ايو only: '+v.replace(/\n/g,' / ').slice(0,220));
+ ok(/汇款记录/.test(v)&&/\d{2}\/\d{4}/.test(v)&&!/كوانزو/.test(v)&&!/[؀-ۿ]/.test(v.replace(/ايو|شركة/g,'')),'staff page in Chinese, ايو only: '+v.replace(/\n/g,' / ').slice(0,220));
  await p.screenshot({path:OS.tmpdir()+'/acc_staff.png'});
  ok(errs.length===0,'staff js errors '+errs.join('|'));
  await b.close();console.log('PASS',pass,'FAIL',fail)})().catch(e=>{console.log('ERR',e.message.split('\n')[0]);process.exit(1)});
