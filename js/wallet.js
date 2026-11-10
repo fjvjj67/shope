@@ -104,6 +104,18 @@ function rateTxt(x) {
   if (x.cur === 'USD' || x.payCur === x.cur) return '';
   return 'كل دولار = ' + Math.round((x.amt / x.paid) * 100) / 100 + ' يوان';
 }
+/* paying a factory through a shipping company: anything above the order's remaining is a fee (transport…) */
+const XT_OPTS = [
+  ['نقل', 'نقل من المصنع'],
+  ['شحن', 'أجور شحن'],
+  ['أخرى', 'أخرى']
+];
+const XT_NAME = { نقل: 'نقل من المصنع', شحن: 'أجور شحن', أخرى: 'مصاريف أخرى' };
+const payExtra = (o, a) => {
+  if (!WS.car || !o || !(itemsTotal(o) > 0)) return 0;
+  const x = r2(a - Math.max(ordRem(o), 0));
+  return x > 0.005 ? x : 0;
+};
 /* the shipment already carries its cost (deducted automatically) → a manual "أجور شحن" for the same order would count twice */
 const shipFeeDup = (cid, oid) => S.shipments.some(x => x.carrierId === cid && x.orderId === oid && +x.cost > 0);
 function walletBal(cid) {
@@ -358,7 +370,9 @@ function wHint() {
   const f = $('#mform');
   if (WS.kind === 'in') {
     const lb = $('#wAmtL');
-    if (lb) lb.textContent = WS.ist === 'wait' ? 'كم راح يسجلون بالرمبي؟ (اختياري، تكتبه وقت توصل)' : 'كم سجلوا لك بالرمبي (¥)؟';
+    if (lb)
+      lb.textContent =
+        WS.ist === 'wait' ? 'كم راح يسجلون بالرمبي؟ (اختياري، تكتبه وقت توصل)' : 'كم سجلوا لك بالرمبي (¥)؟';
     if (WS.ist === 'wait' && !num2(f.elements.wAmt.value)) {
       h.textContent = 'الحوالة تنحفظ بالانتظار وما تنحسب بالرصيد لحد ما تأكد وصولها.';
       return;
@@ -388,14 +402,17 @@ function wHint() {
         (a > rem + 0.005 ? ' · المبلغ أكبر من المتبقي' : '');
       return;
     }
-    const b = walletBal(WS.car)[o.currency] || 0;
+    const b = walletBal(WS.car)[o.currency] || 0,
+      xs = payExtra(o, a);
+    const xb = $('#wXtra');
+    if (xb) xb.hidden = !xs;
     h.textContent =
       (b >= 0 ? 'رصيدك عند الشركة ' + num(b) : 'انت مطلوب لهم ' + num(-b)) +
       ' ' +
       (CUR[o.currency] || '') +
       ' · المتبقي للطلب ' +
       num(rem) +
-      (a > rem + 0.005 ? ' · المبلغ أكبر من المتبقي' : '') +
+      (xs ? ' · الزيادة ' + num(xs) + ' تنسجل ' + XT_NAME[WS.xt] : '') +
       (a > Math.max(b, 0) + 0.005 ? ' · بعدها تصير مطلوب لهم ' + num(r2(a - b)) : '');
   }
 }
@@ -506,6 +523,7 @@ function walletForm(kind, orderId) {
     cur: 'CNY',
     pm: 'part',
     ft: 'شحن',
+    xt: 'نقل',
     ist: 'ok',
     rc: null
   };
@@ -540,7 +558,7 @@ function walletForm(kind, orderId) {
         ['part', 'دفعة جزئية']
       ],
       'part'
-    )}${fld('المبلغ (بعملة الطلب)', inp('wAmt', '', 'number'))}<div class="chips" id="wPct">${[30, 50, 70].map(x => `<button type="button" class="chip" data-act="w-pct" data-v="${x}">${x}%</button>`).join('')}</div>${fld('تاريخ الدفع', inp('wDate', todayISO(), 'date'))}<p class="hint" id="wHint"></p>`;
+    )}${fld('المبلغ (بعملة الطلب)', inp('wAmt', '', 'number'))}<div class="chips" id="wPct">${[30, 50, 70].map(x => `<button type="button" class="chip" data-act="w-pct" data-v="${x}">${x}%</button>`).join('')}</div><div class="fld" id="wXtra" hidden><span>الزيادة على المتبقي شنو هي؟</span>${seg('xt', XT_OPTS, 'نقل')}</div>${fld('تاريخ الدفع', inp('wDate', todayISO(), 'date'))}<p class="hint" id="wHint"></p>`;
   } else {
     title = 'شحن ونقل';
     body += `${seg(
@@ -642,24 +660,45 @@ function walletForm(kind, orderId) {
           return;
         }
         const car = WS.car && byId('carriers', WS.car);
-        const rem = ordRem(o);
-        if (itemsTotal(o) > 0 && amt > rem + 0.005) {
+        const rem = ordRem(o),
+          extra = payExtra(o, amt);
+        if (!car && itemsTotal(o) > 0 && amt > rem + 0.005) {
           ferr('المبلغ أكبر من المتبقي على الطلب (' + num(rem) + ' ' + (CUR[o.currency] || '') + ')', 'wAmt');
           return;
         }
-        await put('payments', {
-          id: newId('payments'),
-          createdAt: Date.now(),
-          orderId: o.id,
-          label: WS.pm === 'full' ? 'دفعة كاملة' : '',
-          amount: amt,
-          dueDate: date,
-          paid: true,
-          paidDate: date,
-          method: car ? 'عن طريق ' + car.name : 'مباشر',
-          via: car ? car.id : '',
-          note: ''
-        });
+        if (extra && WS.xt === 'شحن' && shipFeeDup(WS.car, o.id)) {
+          ferr('أجور شحن هذا الطلب مسجلة بصفحة الشحنات وتنخصم تلقائياً. لا تسجلها مرة ثانية.');
+          return;
+        }
+        // one entry, two records: the order gets exactly its remaining, the extra is a fee on the same order
+        const part = r2(amt - extra);
+        if (part > 0)
+          await put('payments', {
+            id: newId('payments'),
+            createdAt: Date.now(),
+            orderId: o.id,
+            label: WS.pm === 'full' || extra ? 'دفعة كاملة' : '',
+            amount: part,
+            dueDate: date,
+            paid: true,
+            paidDate: date,
+            method: car ? 'عن طريق ' + car.name : 'مباشر',
+            via: car ? car.id : '',
+            note: ''
+          });
+        if (extra)
+          await put('ctx', {
+            id: newId('ctx'),
+            type: 'fee',
+            ft: WS.xt,
+            carrierId: WS.car,
+            orderId: o.id,
+            amt: extra,
+            cur: o.currency || 'CNY',
+            date,
+            note: 'ويا دفعة الطلب',
+            at: Date.now()
+          });
       } else
         await put('ctx', {
           id: newId('ctx'),
