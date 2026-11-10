@@ -1,6 +1,6 @@
 /* Data layer: live collections, company scoping, put/remove, activity log */
 const COLS = ['factories', 'orders', 'payments', 'carriers', 'shipments'];
-const SCOPED = [...COLS, 'ledger', 'ctx'],
+const SCOPED = [...COLS, 'ledger', 'ctx', 'ctn'],
   LOADS = [...SCOPED, 'companies'],
   RAW = {};
 const S = {};
@@ -111,7 +111,8 @@ const COL_TXT = {
   shipments: 'شحنة',
   companies: 'شركة',
   ledger: 'حركة حساب',
-  ctx: 'حركة شركة شحن'
+  ctx: 'حركة شركة شحن',
+  ctn: 'كراتين'
 };
 function labelOf(col, o) {
   if (!o) return '';
@@ -135,6 +136,7 @@ function labelOf(col, o) {
       coName(o.companyId)
     );
   if (col === 'orders') return (o.ref || '') + ' · ' + factoryName(o.factoryId);
+  if (col === 'ctn') return ((byId('orders', o.orderId) || {}).ref || '—') + ' · ' + num(o.n) + ' كرتونة';
   if (col === 'shipments') return o.ref || '';
   if (col === 'payments') {
     const ord = byId('orders', o.orderId);

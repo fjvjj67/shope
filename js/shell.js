@@ -268,6 +268,17 @@ document.addEventListener('click', e => {
     return;
   }
   switch (d.act) {
+    case 'ctn-add':
+      ctnForm(d.order);
+      break;
+    case 'ctn-all':
+      ctnForm(d.order, null, true);
+      break;
+    case 'edit-ctn': {
+      const x = byId('ctn', id);
+      if (x) ctnForm(x.orderId, id);
+      break;
+    }
     case 'reload':
       location.reload();
       break;

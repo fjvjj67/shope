@@ -40,6 +40,7 @@ function openOrder(id) {
     <div><div class="prog" role="img" aria-label="نسبة المدفوع ${Math.round(pp)} بالمئة"><i class="p1" style="width:${pp}%"></i><i class="p2" style="width:${ps}%"></i></div><div class="legend" style="margin-top:6px"><span><b style="background:var(--ok)"></b>مدفوع <bdi>${Math.round(pp)}%</bdi></span><span><b style="background:var(--warn)"></b>مجدول <bdi>${Math.round(ps)}%</bdi></span><span><b style="background:var(--glass-2)"></b>غير مجدول</span></div></div>
     ${items ? `<div class="scroll"><table class="tbl"><thead><tr><th>المنتج</th><th class="n">الكمية</th><th class="n">السعر</th><th class="n">الإجمالي</th></tr></thead><tbody>${items}</tbody></table></div>` : ''}
     <div><h3 style="margin-bottom:6px">الدفعات <span class="acts"><button class="btn ghost sm" data-act="sched-pay" data-order="${id}">${ico('clock', 14)} موعد دفعة</button><button class="btn sm" data-act="pay-order" data-order="${id}">${ico('plus', 14)} دفع الآن</button></span></h3><ul class="list">${pays || '<li style="color:var(--mute)">لا توجد دفعات مسجّلة</li>'}</ul></div>
+    ${ctnSection(o)}
     <div><h3 style="margin-bottom:6px">الشحنات <button class="btn ghost sm" data-act="new-shipment" data-order="${id}">${ico('plus', 14)} شحنة</button></h3><ul class="list">${ships || '<li style="color:var(--mute)">لا توجد شحنات مرتبطة</li>'}</ul></div>
     ${attSection(o)}
     ${o.note ? `<div class="hint">${esc(o.note)}</div>` : ''}
@@ -60,6 +61,26 @@ function openOrder(id) {
     });
   };
   mount();
+}
+
+/* cartons at the shipping company's warehouse (China): total on the order, arrivals in batches */
+function ctnSection(o) {
+  const c = ctnInfo(o);
+  const btns = CANEDIT
+    ? `<span class="acts">${c.left ? `<button class="btn ghost sm" data-act="ctn-all" data-order="${o.id}">وصلت كلها</button>` : ''}<button class="btn sm" data-act="ctn-add" data-order="${o.id}">${ico('plus', 14)} وصلت كراتين</button></span>`
+    : '';
+  const kv = c.total
+    ? `<div class="kv" style="margin-bottom:8px"><div><small>المجموع</small><b>${num(c.total)}</b></div><div><small>وصل للمخزن</small><b style="color:var(--ok)">${num(c.got)}</b></div><div><small>${c.extra ? 'زيادة' : 'باقي'}</small><b style="color:var(--${c.left ? 'warn' : 'ok'})">${num(c.extra || c.left)}</b></div></div><div class="prog" role="img" aria-label="وصل ${num(c.got)} من ${num(c.total)}" style="margin-bottom:8px"><i class="p1" style="width:${Math.min(100, (c.got / c.total) * 100)}%"></i></div>`
+    : c.got
+      ? `<div class="hint" style="margin-bottom:8px">وصل ${num(c.got)} كرتونة. اكتب عدد الكراتين بالطلب حتى يحسب الباقي.</div>`
+      : '';
+  const rows = c.list
+    .map(
+      x =>
+        `<li><div class="t"><b>${num(x.n)} كرتونة</b><small>${fmtD(x.date)}${x.note ? ' · ' + esc(x.note) : ''}</small></div><div class="r">${CANEDIT ? `<button class="icon" data-act="edit-ctn" data-id="${x.id}" aria-label="تعديل">${ico('edit', 16)}</button>` : ''}</div></li>`
+    )
+    .join('');
+  return `<div><h3 style="margin-bottom:6px">الكراتين بالمخزن ${btns}</h3>${kv}<ul class="list">${rows || `<li style="color:var(--mute)">${c.total ? 'بعد ما وصلت كراتين' : 'ما مسجّل كراتين لهذا الطلب'}</li>`}</ul></div>`;
 }
 
 /* ---------- views ---------- */
@@ -331,6 +352,21 @@ function dashboard() {
         id: x.id
       });
   });
+  S.orders
+    .filter(o => o.stage !== 'received' && +o.cartons > 0)
+    .forEach(o => {
+      const c = ctnInfo(o);
+      // only once something arrived, or the factory should be done by now
+      if (c.left && (c.got || ['ready', 'shipped'].includes(o.stage) || (o.prepDate && diffDays(o.prepDate) < 0)))
+        alerts.push({
+          k: 'warn',
+          x: 1,
+          t: `كراتين ناقصة للطلب ${o.ref}: باقي ${num(c.left)}`,
+          s: `وصل ${num(c.got)} من ${num(c.total)} · ` + factoryName(o.factoryId),
+          act: 'open-order',
+          id: o.id
+        });
+    });
   S.orders
     .filter(o => o.stage === 'shipped')
     .forEach(o => {

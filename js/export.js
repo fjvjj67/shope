@@ -320,7 +320,7 @@ async function exportXlsx() {
 }
 async function exportJson() {
   const data = {};
-  [...COLS, 'ledger', 'ctx', 'companies'].forEach(c => (data[c] = RAW[c]));
+  [...COLS, 'ledger', 'ctx', 'ctn', 'companies'].forEach(c => (data[c] = RAW[c]));
   data.files = [];
   for (const o of RAW.orders)
     for (const f of o.files || []) {
@@ -362,7 +362,7 @@ function restoreFile(file) {
     const okId = /^[A-Za-z0-9_\-.~:@+]{1,200}$/;
     const clean = {};
     let skipped = 0;
-    const KEYS = [...COLS, 'ledger', 'ctx', 'companies', 'files'];
+    const KEYS = [...COLS, 'ledger', 'ctx', 'ctn', 'companies', 'files'];
     KEYS.forEach(c => {
       clean[c] = [];
       (Array.isArray(j.data[c]) ? j.data[c] : []).forEach(d => {

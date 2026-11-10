@@ -151,3 +151,13 @@ const ferr = (msg, field) => {
   if (field && f && f.elements[field] && f.elements[field].focus) f.elements[field].focus();
   else if (e && e.scrollIntoView) e.scrollIntoView({ block: 'nearest' });
 };
+
+/* cartons that reached the shipping company's warehouse in China (collection `ctn`: {orderId, n, date, note}) */
+function ctnInfo(o) {
+  const list = S.ctn
+    .filter(x => x.orderId === o.id)
+    .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.at || 0) - (a.at || 0));
+  const total = Math.max(0, Math.round(+o.cartons || 0)),
+    got = list.reduce((a, x) => a + (Math.round(+x.n) || 0), 0);
+  return { total, got, left: total ? Math.max(0, total - got) : 0, extra: total ? Math.max(0, got - total) : 0, list };
+}

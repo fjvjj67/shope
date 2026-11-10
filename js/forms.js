@@ -292,6 +292,7 @@ function orderForm(o0, back) {
       <div class="nfbox" id="nfBox"${noF ? '' : ' hidden'}>${inp('newFactory', '', 'text', 'placeholder="اكتب اسم المصنع الجديد" autocomplete="off"')}<small>ينضاف للمصانع تلقائياً وينربط بهذا الطلب.</small></div></div>
     <div class="fld wide"><span>رقم الوجبة</span><div class="bno" id="bnoBox"${useB ? '' : ' hidden'}><bdi dir="ltr" class="pre">${esc(bc.p)}</bdi><input id="f_bno" name="bno" type="number" inputmode="numeric" min="1" step="1" dir="ltr" value="${useB ? bn0 : ''}" autocomplete="off" aria-label="رقم الوجبة"></div><div id="refBox"${useB ? ' hidden' : ''}>${inp('ref', e.ref, 'text', 'autocomplete="off" dir="auto"')}</div><small class="bnoh" id="bnoH"></small>${bc.p ? `<button type="button" class="link sm" data-act="ref-mode">${useB ? 'اكتب رقم يدوي' : 'استخدم ترقيم الوجبات'}</button>` : ''}</div>
     ${fld('إجمالي الطلب', inp('total', o0 ? itemsTotal(e) || '' : '', 'number', 'placeholder="0"'))}
+    ${fld('عدد الكراتين (اختياري)', inp('cartons', e.cartons || '', 'number', 'inputmode="numeric" placeholder="مثلاً 120"'))}
     ${
       e.currency === 'USD'
         ? fld(
@@ -409,6 +410,12 @@ function orderForm(o0, back) {
         ferr('إجمالي الطلب غير صالح', 'total');
         return;
       }
+      const cv = val(f, 'cartons'),
+        cartons = Math.round(parseFloat(cv) || 0);
+      if (cv !== '' && !(parseFloat(cv) >= 0)) {
+        ferr('عدد الكراتين غير صالح', 'cartons');
+        return;
+      }
       const oldItems = e.items || [],
         items = oldItems.length && Math.abs(itemsTotal({ items: oldItems }) - total) < 0.005 ? oldItems : [];
       if (o0) {
@@ -465,6 +472,7 @@ function orderForm(o0, back) {
           currency,
           items,
           total,
+          cartons,
           note: val(f, 'note')
         })
       );
@@ -994,4 +1002,55 @@ async function doDelete(col, id) {
     closeModal();
     toast('تم الحذف');
   } catch (e) {}
+}
+
+/* one batch of cartons arriving at the shipping company's warehouse (China) */
+function ctnForm(orderId, entryId, all) {
+  const o = byId('orders', orderId);
+  if (!o) return;
+  const e = entryId ? byId('ctn', entryId) : null,
+    ci = ctnInfo(o);
+  const n0 = e ? e.n : all ? ci.left : '';
+  const head = ci.total
+    ? `${esc(orderLabel(o))} — وصل ${num(ci.got)} من ${num(ci.total)} · باقي ${num(ci.left)}`
+    : `${esc(orderLabel(o))} — وصل ${num(ci.got)} كرتونة لحد هسه`;
+  openModal(
+    e ? 'تعديل وجبة كراتين' : 'وصلت كراتين للمخزن',
+    `<div class="hint">${head}</div>${fld('كم كرتونة وصلت؟', inp('n', n0, 'number', 'inputmode="numeric" min="1" step="1"'))}${fld('التاريخ', inp('date', e ? e.date : todayISO(), 'date'))}${fld('ملاحظة (اختياري)', inp('note', e ? e.note || '' : all ? 'وصلت كلها' : '', 'text', 'placeholder="مثلاً الوجبة الأخيرة"'))}`,
+    {
+      back: () => openOrder(orderId),
+      del: e ? ['ctn', e.id] : null,
+      onOpen: f => {
+        const i = f.elements.n;
+        if (i && !e && !all) setTimeout(() => i.focus(), 60);
+      },
+      onSubmit: async f => {
+        const nv = parseFloat(val(f, 'n')),
+          date = val(f, 'date') || todayISO();
+        if (!(nv > 0) || Math.round(nv) !== nv) {
+          ferr('اكتب عدد الكراتين (رقم صحيح)', 'n');
+          return;
+        }
+        if (date > todayISO()) {
+          ferr('التاريخ لا يمكن أن يكون في المستقبل', 'date');
+          return;
+        }
+        await put(
+          'ctn',
+          Object.assign({}, e, {
+            id: e ? e.id : newId('ctn'),
+            orderId,
+            companyId: o.companyId || ACTIVE,
+            n: nv,
+            date,
+            note: val(f, 'note'),
+            at: e ? e.at : Date.now(),
+            by: e ? e.by : myId || ''
+          })
+        );
+        closeModal();
+        toast('تم حفظ الكراتين');
+      }
+    }
+  );
 }

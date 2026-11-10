@@ -1,7 +1,7 @@
 // Fake supabase-js for browser tests: in-memory tables + role enforcement similar to schema.sql
 (function(){
 const ROLE=window.__ROLE||'admin';
-const STAFF_COLS=['factories','orders','payments','carriers','shipments','activity','companies','ledger','files','fchunks','ctx'];
+const STAFF_COLS=['factories','orders','payments','carriers','shipments','activity','companies','ledger','files','fchunks','ctx','ctn'];
 const users={ 'u-admin':{user_id:'u-admin',email:'admin@azawi.app',name:'المدير',role:'admin',created_at:'1'}, 'u-mem':{user_id:'u-mem',email:'staff@azawi.app',name:'الموظف',role:'staff',company:'yiwu',lang:'zh',created_at:'2'}, 'u-new':{user_id:'u-new',email:'x@azawi.app',name:'موقوف',role:'pending',created_at:'3'}};
 const me={admin:'u-admin',staff:'u-mem',pending:'u-new'}[ROLE];
 const st=JSON.parse(localStorage.getItem('mockdb')||'null')||{docs:[],};
