@@ -270,16 +270,50 @@ function acctSummary(id) {
     };
   });
 }
+/* Accounts page: only the account picked at the top (كوانزو / ايو) + its money transfers to the shipping company */
+let ACCT_M = '';
+const MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+const monthName = ym => MONTHS[+ym.slice(5, 7) - 1] + ' ' + ym.slice(0, 4);
 function companiesView() {
-  return `<div class="cards">${S.companies
-    .map(c => {
-      const a = acctSummary(c.id);
-      return `<div class="card"><h3>${esc(c.name)} ${c.id === ACTIVE ? pill('ok', 'الحالي') : ''}</h3>
-     <div class="mini"><span>شركة الشحن</span><b>${esc(a.car || '—')}</b></div>
-     <div class="mini"><span>رصيدك عندهم</span><b>${balLine(a.w)}</b></div>
-     <div class="mini"><span>المتبقي للمصانع</span><b>${multi(a.r)}</b></div>
-     <div class="mini"><span>طلبات مفتوحة</span><b>${a.open}</b></div>
-     <div class="bar" style="margin-top:10px">${c.id !== ACTIVE ? `<button class="btn sm" data-act="acct" data-id="${esc(c.id)}">فتح الحساب</button>` : ''}<button class="btn ghost sm" data-act="edit-company" data-id="${esc(c.id)}">${ico('edit', 14)} تعديل الاسم</button></div></div>`;
-    })
-    .join('')}</div>`;
+  const c = S.companies.find(x => x.id === ACTIVE) || S.companies[0];
+  if (!c) return empty('ماكو حساب', '');
+  const a = acctSummary(c.id);
+  const head = `<div class="card acct-hero"><div class="acct-top"><div><h3 style="margin:0">حساب ${esc(c.name)}</h3><small style="color:var(--mute)">${esc(a.car || 'ما مضاف شركة شحن')}</small></div><div class="bar"><button class="btn ghost sm" data-act="edit-company" data-id="${esc(c.id)}">${ico('edit', 14)} تعديل الاسم</button>${ADMIN ? `<button class="btn ghost sm" data-act="new-company">${ico('plus', 14)} حساب جديد</button>` : ''}</div></div>
+   <div class="acct-stats"><div><small>رصيدك عندهم</small><b>${balLine(a.w)}</b></div><div><small>المتبقي للمصانع</small><b>${multi(a.r)}</b></div><div><small>طلبات مفتوحة</small><b>${a.open}</b></div></div></div>`;
+  return head + transfersView();
+}
+function transfersView() {
+  const all = S.ctx.filter(x => x.type === 'in').sort((p, q) => (q.date || '').localeCompare(p.date || '') || (q.at || 0) - (p.at || 0));
+  if (!all.length)
+    return `<div class="card" style="margin-top:12px"><h3>التحويلات</h3><p style="color:var(--mute);margin:0">ما مسجل تحويلات بهذا الحساب. سجّلها من الرئيسية ← «أرسلت فلوس».</p></div>`;
+  const months = [...new Set(all.map(x => (x.date || '').slice(0, 7)).filter(Boolean))];
+  if (ACCT_M !== 'all' && !months.includes(ACCT_M)) ACCT_M = months.includes(todayISO().slice(0, 7)) ? todayISO().slice(0, 7) : months[0];
+  const list = ACCT_M === 'all' ? all : all.filter(x => (x.date || '').startsWith(ACCT_M));
+  const ok = list.filter(x => x.status !== 'wait'),
+    wait = all.filter(x => x.status === 'wait');
+  const sum = (arr, f) => arr.reduce((s, x) => s + (f(x) || 0), 0);
+  const iqd = sum(list, x => (x.payCur === 'IQD' ? +x.paid : 0)),
+    usd = sum(list, x => (x.payCur === 'USD' ? +x.paid : 0)),
+    got = sum(ok, x => (x.cur === 'CNY' ? +x.amt : 0));
+  const iq = ok.filter(x => x.payCur === 'IQD' && +x.paid > 0 && +x.amt > 0 && x.cur === 'CNY'),
+    rate = sum(iq, x => +x.amt) ? r2(sum(iq, x => +x.paid) / sum(iq, x => +x.amt)) : 0;
+  const chips = `<div class="chips acct-m" role="group">${months
+    .map(m => `<button type="button" class="chip" data-act="acct-m" data-v="${m}" aria-pressed="${m === ACCT_M}">${monthName(m)}</button>`)
+    .join('')}<button type="button" class="chip" data-act="acct-m" data-v="all" aria-pressed="${ACCT_M === 'all'}">الكل</button></div>`;
+  const sumCard = `<div class="card" style="margin-top:12px"><h3 style="margin-bottom:8px">التحويلات · ${ACCT_M === 'all' ? 'كل الأشهر' : monthName(ACCT_M)}</h3>${chips}
+   <div class="acct-sum"><div><span>دفعت</span><b>${[iqd ? num(iqd) + ' د.ع' : '', usd ? num(usd) + ' $' : ''].filter(Boolean).join(' + ') || '0'}</b></div><div><span>سجلوا لك</span><b style="color:var(--ok)">${money(got, 'CNY')}</b></div>${rate ? `<div><span>معدل سعر اليوان</span><b>${num(rate)} د.ع</b></div>` : ''}<div><span>عدد التحويلات</span><b>${list.length}</b></div></div>
+   ${wait.length ? `<div class="acct-wait">⏳ ${wait.length === 1 ? 'حوالة بالانتظار' : wait.length + ' حوالات بالانتظار'}: ${[sum(wait, x => (x.payCur === 'IQD' ? +x.paid : 0)), sum(wait, x => (x.payCur === 'USD' ? +x.paid : 0))].map((v, i) => (v ? num(v) + (i ? ' $' : ' د.ع') : '')).filter(Boolean).join(' + ') || '—'}</div>` : ''}</div>`;
+  const multiCar = S.carriers.length > 1;
+  const row = x => {
+    const d = x.date || '',
+      w = x.status === 'wait',
+      rc = (x.files || [])[0],
+      age = w ? -diffDays(x.date) : 0;
+    const paid = x.paid ? 'دفعت ' + num(x.paid) + ' ' + (x.payCur === 'USD' ? '$' : 'د.ع') : 'حوالة';
+    const sub = w
+      ? `<span style="color:var(--warn)">⏳ بالانتظار · ${age > 0 ? 'صارلها ' + plural(age) : 'اليوم'}</span>`
+      : `سجلوا لك <b style="color:var(--ok)">${money(x.amt, x.cur)}</b>${rateTxt(x) ? ' · ' + rateTxt(x) : ''}`;
+    return `<div class="tx-row"><div class="tx-d"><b>${d.slice(8, 10) || '—'}</b><small>${d ? MONTHS[+d.slice(5, 7) - 1] : ''}</small></div><div class="t"><b>${paid}</b><small>${sub}${multiCar ? ' · ' + esc((byId('carriers', x.carrierId) || {}).name || '') : ''}${x.note ? ' · ' + esc(x.note) : ''}</small></div><div class="r">${rc ? `<button type="button" class="rcbtn" data-act="view-rc" data-id="${rc.id}" aria-label="صورة الوصل">🧾</button>` : ''}${w ? `<button type="button" class="btn sm" data-act="w-confirm" data-id="${x.id}">وصلت ✓</button>` : ''}${moneyEdit() ? `<button class="icon" style="width:30px;height:30px" data-act="edit-ctx" data-id="${x.id}" aria-label="تعديل">${ico('edit', 14)}</button>` : ''}</div></div>`;
+  };
+  return sumCard + `<div class="card" style="margin-top:12px">${list.length ? list.map(row).join('') : '<p style="color:var(--mute);margin:0">ما اكو تحويلات بهذا الشهر.</p>'}</div>`;
 }

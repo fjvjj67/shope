@@ -27,8 +27,7 @@ const ADD = {
   payments: ['دفعة جديدة', 'new-payment'],
   shipments: ['شحنة جديدة', 'new-shipment'],
   factories: ['مصنع جديد', 'new-factory'],
-  carriers: ['شركة شحن', 'new-carrier'],
-  companies: ['حساب جديد', 'new-company']
+  carriers: ['شركة شحن', 'new-carrier']
 };
 let cur = 'home';
 try {
@@ -268,6 +267,10 @@ document.addEventListener('click', e => {
     return;
   }
   switch (d.act) {
+    case 'acct-m':
+      ACCT_M = d.v;
+      render();
+      break;
     case 'edit-ctx':
       ctxEditForm(id);
       break;

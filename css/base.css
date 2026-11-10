@@ -1884,3 +1884,26 @@ body.lockco [data-act='edit-company'] {
     font-size: 14px;
   }
 }
+
+/* accounts page: one account + its transfers */
+.acct-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.acct-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;text-align:center}
+.acct-stats>div{background:rgba(0,0,0,.18);border-radius:12px;padding:8px 4px;min-width:0}
+.acct-stats small{color:var(--mute);display:block;font-size:12px}
+.acct-stats b{display:block;font-size:16px;overflow-wrap:anywhere}
+.acct-m{flex-wrap:nowrap;overflow-x:auto;margin-bottom:10px;padding-bottom:2px}
+.acct-m .chip{flex:0 0 auto}
+.acct-sum{display:flex;flex-direction:column;gap:8px}
+.acct-sum>div{display:flex;justify-content:space-between;gap:10px}
+.acct-sum span{color:var(--mute)}
+.acct-wait{margin-top:10px;padding:8px 10px;border-radius:10px;background:rgba(240,180,60,.12);color:var(--warn)}
+.tx-row{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.tx-row:last-child{border-bottom:0}
+.tx-row .t{flex:1;min-width:0}
+.tx-row .t b{display:block;font-size:15px}
+.tx-row .t small{color:var(--mute)}
+.tx-row .r{display:flex;gap:6px;align-items:center}
+.tx-d{min-width:50px;text-align:center;background:rgba(255,255,255,.05);border-radius:12px;padding:6px 4px}
+.tx-d b{display:block;font-size:18px}
+.tx-d small{color:var(--mute);font-size:11px}
+[data-ui=light] .acct-stats>div,[data-ui=light] .tx-d{background:rgba(0,0,0,.05)}
