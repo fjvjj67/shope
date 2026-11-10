@@ -1907,3 +1907,8 @@ body.lockco [data-act='edit-company'] {
 .tx-d b{display:block;font-size:18px}
 .tx-d small{color:var(--mute);font-size:11px}
 [data-ui=light] .acct-stats>div,[data-ui=light] .tx-d{background:rgba(0,0,0,.05)}
+.acct-got{margin:4px 0 10px}
+.acct-got small{color:var(--mute);display:block}
+.acct-got b{font-size:28px;color:var(--ok)}
+.acct-sum span:last-child{color:var(--mute)}
+.tx-row .t .tx-y{color:var(--ok);font-size:18px}

@@ -434,7 +434,7 @@ document.addEventListener('click', e => {
         ferr('اكتب إجمالي الطلب أولاً حتى تُحسب النسبة');
         break;
       }
-      f.elements.amount.value = r2((tot * +d.pct) / 100);
+      setNum(f.elements.amount, r2((tot * +d.pct) / 100));
       f.elements.amount.dispatchEvent(new Event('input', { bubbles: true }));
       break;
     }
@@ -445,7 +445,7 @@ document.addEventListener('click', e => {
         toast('لا يوجد باقٍ لاقتراحه', 'bad');
         break;
       }
-      f.elements.amount.value = f.dataset.sug;
+      setNum(f.elements.amount, f.dataset.sug);
       f.elements.amount.dispatchEvent(new Event('input', { bubbles: true }));
       break;
     }
@@ -528,7 +528,7 @@ document.addEventListener('click', e => {
       if (d.k === 'pm') {
         const f = $('#mform'),
           o = WS.ord && byId('orders', WS.ord);
-        if (d.v === 'full' && o) f.elements.wAmt.value = ordRem(o);
+        if (d.v === 'full' && o) setNum(f.elements.wAmt, ordRem(o));
         else if (d.v === 'part') f.elements.wAmt.value = '';
         const pc = $('#wPct');
         if (pc) pc.hidden = d.v === 'full';
@@ -554,7 +554,7 @@ document.addEventListener('click', e => {
     }
     case 'sp-all': {
       const f = $('#mform');
-      if (f && f.elements.amount) f.elements.amount.value = d.v;
+      if (f && f.elements.amount) setNum(f.elements.amount, d.v);
       break;
     }
     case 'w-confirm':
@@ -569,7 +569,7 @@ document.addEventListener('click', e => {
         ferr('اختر الطلب أولاً');
         break;
       }
-      $('#mform').elements.wAmt.value = r2((ordRem(o) * +d.v) / 100);
+      setNum($('#mform').elements.wAmt, r2((ordRem(o) * +d.v) / 100));
       wHint();
       break;
     }
@@ -581,7 +581,7 @@ document.addEventListener('click', e => {
       comboToggle('cbOrd', false);
       comboPaint('cbOrd');
       const o = WS.ord && byId('orders', WS.ord);
-      if (WS.kind === 'pay' && WS.pm === 'full' && o) $('#mform').elements.wAmt.value = ordRem(o);
+      if (WS.kind === 'pay' && WS.pm === 'full' && o) setNum($('#mform').elements.wAmt, ordRem(o));
       wHint();
       break;
     }

@@ -182,7 +182,7 @@ function ledgerForm(companyId) {
     {
       back: () => openCompany(companyId),
       onSubmit: async f => {
-        const amount = parseFloat(val(f, 'amount'));
+        const amount = num2(val(f, 'amount'));
         if (!(amount > 0)) {
           ferr('اكتب مبلغاً أكبر من صفر', 'amount');
           return;
@@ -295,13 +295,12 @@ function transfersView() {
   const iqd = sum(list, x => (x.payCur === 'IQD' ? +x.paid : 0)),
     usd = sum(list, x => (x.payCur === 'USD' ? +x.paid : 0)),
     got = sum(ok, x => (x.cur === 'CNY' ? +x.amt : 0));
-  const iq = ok.filter(x => x.payCur === 'IQD' && +x.paid > 0 && +x.amt > 0 && x.cur === 'CNY'),
-    rate = sum(iq, x => +x.amt) ? r2(sum(iq, x => +x.paid) / sum(iq, x => +x.amt)) : 0;
   const chips = `<div class="chips acct-m" role="group">${months
     .map(m => `<button type="button" class="chip" data-act="acct-m" data-v="${m}" aria-pressed="${m === ACCT_M}">${monthName(m)}</button>`)
     .join('')}<button type="button" class="chip" data-act="acct-m" data-v="all" aria-pressed="${ACCT_M === 'all'}">الكل</button></div>`;
   const sumCard = `<div class="card" style="margin-top:12px"><h3 style="margin-bottom:8px">التحويلات · ${ACCT_M === 'all' ? 'كل الأشهر' : monthName(ACCT_M)}</h3>${chips}
-   <div class="acct-sum"><div><span>دفعت</span><b>${[iqd ? num(iqd) + ' د.ع' : '', usd ? num(usd) + ' $' : ''].filter(Boolean).join(' + ') || '0'}</b></div><div><span>سجلوا لك</span><b style="color:var(--ok)">${money(got, 'CNY')}</b></div>${rate ? `<div><span>معدل سعر اليوان</span><b>${num(rate)} د.ع</b></div>` : ''}<div><span>عدد التحويلات</span><b>${list.length}</b></div></div>
+   <div class="acct-got"><small>سجلوا لك</small><b>${money(got, 'CNY')}</b></div>
+   <div class="acct-sum"><div><span>دفعت</span><span>${[iqd ? num(iqd) + ' د.ع' : '', usd ? num(usd) + ' $' : ''].filter(Boolean).join(' + ') || '—'}</span></div><div><span>عدد التحويلات</span><span>${list.length}</span></div></div>
    ${wait.length ? `<div class="acct-wait">⏳ ${wait.length === 1 ? 'حوالة بالانتظار' : wait.length + ' حوالات بالانتظار'}: ${[sum(wait, x => (x.payCur === 'IQD' ? +x.paid : 0)), sum(wait, x => (x.payCur === 'USD' ? +x.paid : 0))].map((v, i) => (v ? num(v) + (i ? ' $' : ' د.ع') : '')).filter(Boolean).join(' + ') || '—'}</div>` : ''}</div>`;
   const multiCar = S.carriers.length > 1;
   const row = x => {
@@ -309,11 +308,12 @@ function transfersView() {
       w = x.status === 'wait',
       rc = (x.files || [])[0],
       age = w ? -diffDays(x.date) : 0;
-    const paid = x.paid ? 'دفعت ' + num(x.paid) + ' ' + (x.payCur === 'USD' ? '$' : 'د.ع') : 'حوالة';
-    const sub = w
-      ? `<span style="color:var(--warn)">⏳ بالانتظار · ${age > 0 ? 'صارلها ' + plural(age) : 'اليوم'}</span>`
-      : `سجلوا لك <b style="color:var(--ok)">${money(x.amt, x.cur)}</b>${rateTxt(x) ? ' · ' + rateTxt(x) : ''}`;
-    return `<div class="tx-row"><div class="tx-d"><b>${d.slice(8, 10) || '—'}</b><small>${d ? MONTHS[+d.slice(5, 7) - 1] : ''}</small></div><div class="t"><b>${paid}</b><small>${sub}${multiCar ? ' · ' + esc((byId('carriers', x.carrierId) || {}).name || '') : ''}${x.note ? ' · ' + esc(x.note) : ''}</small></div><div class="r">${rc ? `<button type="button" class="rcbtn" data-act="view-rc" data-id="${rc.id}" aria-label="صورة الوصل">🧾</button>` : ''}${w ? `<button type="button" class="btn sm" data-act="w-confirm" data-id="${x.id}">وصلت ✓</button>` : ''}${moneyEdit() ? `<button class="icon" style="width:30px;height:30px" data-act="edit-ctx" data-id="${x.id}" aria-label="تعديل">${ico('edit', 14)}</button>` : ''}</div></div>`;
+    const paid = x.paid ? 'دفعت ' + num(x.paid) + ' ' + (x.payCur === 'USD' ? '$' : 'د.ع') : '';
+    const main = w
+      ? `<b style="color:var(--warn)">⏳ بالانتظار</b>`
+      : `<b class="tx-y">${money(x.amt, x.cur)}</b>`;
+    const sub = [w ? (age > 0 ? 'صارلها ' + plural(age) : 'اليوم') : '', paid].filter(Boolean).join(' · ');
+    return `<div class="tx-row"><div class="tx-d"><b>${d.slice(8, 10) || '—'}</b><small>${d ? MONTHS[+d.slice(5, 7) - 1] : ''}</small></div><div class="t">${main}<small>${sub}${multiCar ? ' · ' + esc((byId('carriers', x.carrierId) || {}).name || '') : ''}${x.note ? ' · ' + esc(x.note) : ''}</small></div><div class="r">${rc ? `<button type="button" class="rcbtn" data-act="view-rc" data-id="${rc.id}" aria-label="صورة الوصل">🧾</button>` : ''}${w ? `<button type="button" class="btn sm" data-act="w-confirm" data-id="${x.id}">وصلت ✓</button>` : ''}${moneyEdit() ? `<button class="icon" style="width:30px;height:30px" data-act="edit-ctx" data-id="${x.id}" aria-label="تعديل">${ico('edit', 14)}</button>` : ''}</div></div>`;
   };
   return sumCard + `<div class="card" style="margin-top:12px">${list.length ? list.map(row).join('') : '<p style="color:var(--mute);margin:0">ما اكو تحويلات بهذا الشهر.</p>'}</div>`;
 }

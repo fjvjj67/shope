@@ -71,7 +71,33 @@ document.addEventListener('keydown', e => {
 
 const fld = (label, html, cls) => `<label class="fld ${cls || ''}"><span>${label}</span>${html}</label>`;
 const inp = (name, val, type, extra) =>
-  `<input id="f_${name}" name="${name}" type="${type || 'text'}" value="${esc(val == null ? '' : val)}" ${type === 'number' ? 'step="any" inputmode="decimal" min="0"' : ''} ${extra || ''}>`;
+  type === 'number'
+    ? `<input id="f_${name}" name="${name}" type="text" data-num autocomplete="off" value="${esc(fmtIn(val))}" ${/inputmode/.test(extra || '') ? '' : 'inputmode="decimal"'} ${(extra || '').replace(/\s(min|step)="[^"]*"/g, '')}>`
+    : `<input id="f_${name}" name="${name}" type="${type || 'text'}" value="${esc(val == null ? '' : val)}" ${extra || ''}>`;
+/* live formatting, keeping the cursor after the same digit */
+document.addEventListener(
+  'input',
+  e => {
+    const t = e.target;
+    if (!t.matches || !t.matches('input[data-num]')) return;
+    const raw = t.value,
+      pos = t.selectionStart == null ? raw.length : t.selectionStart;
+    const before = fmtIn(raw.slice(0, pos)).replace(/,/g, '').length;
+    const out = fmtIn(raw);
+    if (out === raw) return;
+    t.value = out;
+    let i = 0,
+      seen = 0;
+    while (i < out.length && seen < before) {
+      if (out[i] !== ',') seen++;
+      i++;
+    }
+    try {
+      t.setSelectionRange(i, i);
+    } catch (err) {}
+  },
+  true
+);
 const sel = (name, opts, val) =>
   `<select id="f_${name}" name="${name}">${opts.map(o => `<option value="${esc(o[0])}"${o[0] === val ? ' selected' : ''}>${esc(o[1])}</option>`).join('')}</select>`;
 const ta = (name, val) => `<textarea id="f_${name}" name="${name}" rows="2">${esc(val || '')}</textarea>`;
@@ -178,7 +204,7 @@ function carrierForm(c0, back) {
             contact: val(f, 'contact'),
             phone: val(f, 'phone'),
             openBal: (() => {
-              const v = Math.abs(parseFloat(val(f, 'openBal')) || 0);
+              const v = Math.abs(num2(val(f, 'openBal')) || 0);
               return val(f, 'openDir') === 'due' ? -v : v;
             })(),
             openCur: val(f, 'openCur'),
@@ -405,14 +431,14 @@ function orderForm(o0, back) {
         return;
       }
       const tv = val(f, 'total'),
-        total = r2(parseFloat(tv) || 0);
-      if (tv !== '' && !(parseFloat(tv) >= 0)) {
+        total = r2(num2(tv) || 0);
+      if (tv !== '' && !(num2(tv) >= 0)) {
         ferr('إجمالي الطلب غير صالح', 'total');
         return;
       }
       const cv = val(f, 'cartons'),
-        cartons = Math.round(parseFloat(cv) || 0);
-      if (cv !== '' && !(parseFloat(cv) >= 0)) {
+        cartons = Math.round(num2(cv) || 0);
+      if (cv !== '' && !(num2(cv) >= 0)) {
         ferr('عدد الكراتين غير صالح', 'cartons');
         return;
       }
@@ -657,7 +683,7 @@ function paymentForm(p0, orderId, back) {
         const plan = payPlan(o, e.id),
           recorded = plan.length ? plan[plan.length - 1].cum : 0,
           total = itemsTotal(o);
-        const mine = r2(parseFloat(f.elements.amount.value) || 0),
+        const mine = r2(num2(f.elements.amount.value) || 0),
           left = r2(total - recorded - mine);
         h.className = 'hint' + (total && left < -0.005 ? ' bad' : '');
         const key =
@@ -681,7 +707,7 @@ function paymentForm(p0, orderId, back) {
         const pl = planHTML(o, e.id, !!p0);
         $('#plan').innerHTML = pl.html;
         f.dataset.sug = pl.sug > 0.005 ? pl.sug : '';
-        if (!touched && pl.sug > 0.005) f.elements.amount.value = pl.sug;
+        if (!touched && pl.sug > 0.005) setNum(f.elements.amount, pl.sug);
         hint();
       };
       f.addEventListener('input', ev => {
@@ -700,7 +726,7 @@ function paymentForm(p0, orderId, back) {
         ferr('اختر الطلب', 'orderId');
         return;
       }
-      const amount = r2(parseFloat(f.elements.amount.value));
+      const amount = r2(num2(f.elements.amount.value));
       if (!(amount > 0)) {
         ferr('اكتب مبلغاً أكبر من صفر', 'amount');
         return;
@@ -1025,7 +1051,7 @@ function ctnForm(orderId, entryId, all) {
         if (i && !e && !all) setTimeout(() => i.focus(), 60);
       },
       onSubmit: async f => {
-        const nv = parseFloat(val(f, 'n')),
+        const nv = num2(val(f, 'n')),
           date = val(f, 'date') || todayISO();
         if (!(nv > 0) || Math.round(nv) !== nv) {
           ferr('اكتب عدد الكراتين (رقم صحيح)', 'n');

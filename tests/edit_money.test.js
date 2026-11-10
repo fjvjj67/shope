@@ -29,7 +29,7 @@ const docs=co=>{const D=[],A=(col,id,data)=>D.push({col,id,data:Object.assign({c
  ok(await p.evaluate(()=>document.querySelectorAll('.modal [data-act=edit-ctx]').length===2&&!!document.querySelector('.modal [data-act=edit-payment]')),'admin: edit buttons on transfer, fee, factory payment');
  // edit transfer amount + note
  await p.click('.modal [data-act=edit-ctx][data-id=t1]');await p.waitForTimeout(150);
- ok(await p.inputValue('#f_wAmt')==='10000'&&await p.inputValue('#f_wPaid')==='1500000','form pre-filled');
+ ok(await p.inputValue('#f_wAmt')==='10,000'&&await p.inputValue('#f_wPaid')==='1,500,000','form pre-filled');
  ok(/150/.test(await p.textContent('#wHint')),'rate hint shown: '+await p.textContent('#wHint'));
  await p.fill('#f_wAmt','12000');await p.fill('#f_wNote','صححت المبلغ');await p.screenshot({path:OS.tmpdir()+'/em_in.png'});await save(p);
  await p.waitForFunction(()=>+byId('ctx','t1').amt===12000);

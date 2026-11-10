@@ -81,6 +81,24 @@ function toast(msg, kind) {
   toastT = setTimeout(() => t.remove(), 3200);
 }
 // read a typed amount: accepts 1,000 / ١٬٠٠٠ / ۱۰۰۰ / full-width Chinese digits １０００ and ٫ or ． as decimal point
+/* number fields show thousands separators while typing: 10000 → 10,000 (num2 strips them when reading) */
+const fmtIn = v => {
+  let s = String(v == null ? '' : v)
+    .replace(/[\uFF10-\uFF19]/g, d => d.charCodeAt(0) - 0xff10)
+    .replace(/[\u0660-\u0669]/g, d => d.charCodeAt(0) - 0x660)
+    .replace(/[\u06F0-\u06F9]/g, d => d.charCodeAt(0) - 0x6f0)
+    .replace(/[\u066B\uFF0E]/g, '.')
+    .replace(/[^\d.]/g, '');
+  if (!s) return '';
+  const k = s.indexOf('.');
+  if (k >= 0) s = s.slice(0, k + 1) + s.slice(k + 1).replace(/\./g, '');
+  const [a, b] = s.split('.');
+  const ip = (a.replace(/^0+(?=\d)/, '') || (b !== undefined ? '0' : '')).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return b !== undefined ? ip + '.' + b : ip;
+};
+const setNum = (el, v) => {
+  if (el) el.value = el.hasAttribute('data-num') ? fmtIn(v) : v;
+};
 const num2 = v => {
   const n = parseFloat(
     String(v || '')

@@ -31,7 +31,7 @@ const store=JSON.stringify({docs:D});
  ok(await p.evaluate(()=>document.querySelectorAll('#view .tx-row').length===3),'this month: 3 transfers (fee not listed, last month hidden)');
  ok(v.includes('19,000,000 د.ع + 7,000 $')||v.replace(/\s/g,'').includes('29,000,000د.ع+7,000$'),'sent total: '+v.match(/دفعت[^س]{0,40}/));
  ok(v.includes('¥150,000'),'received ¥ = 150,000 (pending excluded)');
- ok(v.includes('190 د.ع'),'average yuan rate 190');
+ ok(!v.includes('معدل سعر اليوان')&&!v.includes('كلّفك'),'no yuan-rate lines (dinar only as info)');
  ok(v.includes('حوالة بالانتظار: 10,000,000 د.ع'),'pending shown');
  ok(await p.evaluate(()=>!document.body.classList.contains('hasfab')&&!!document.querySelector('#view [data-act=new-company]')),'new-account moved into the card');
  await p.screenshot({path:OS.tmpdir()+'/acc_main.png'});
