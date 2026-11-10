@@ -12,7 +12,16 @@ function usersView() {
           .map(([k, t]) => `<option value="${k}"${p.role === k ? ' selected' : ''}>${t}</option>`)
           .join('')}</select></td></tr>`
     )
-    .join('')}</tbody></table></div>`;
+    .join('')}</tbody></table></div>${moneyEditCard()}`;
+}
+/* admin decides, per account, whether the assistant may edit transfers and fees */
+function moneyEditCard() {
+  return `<div class="card" style="margin-top:14px"><h3>تعديل الحسابات</h3><p style="color:var(--mute);margin:6px 0 12px">المدير يكدر يعدّل التحويلات والمصاريف دائماً. هنا تختار إذا مساعدك يكدر يعدّلها بكل حساب. الحذف يبقى للمدير بس، وكل تعديل ينحفظ بالسجل.</p>${S.companies
+    .map(
+      c =>
+        `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0"><span>${esc(c.name)}: <b>${c.staffMoneyEdit ? 'مساعدك يكدر يعدّل' : 'مساعدك ما يكدر يعدّل'}</b></span><button class="btn ${c.staffMoneyEdit ? 'ghost ' : ''}sm" data-act="money-edit-sw" data-co="${c.id}" aria-pressed="${!!c.staffMoneyEdit}">${c.staffMoneyEdit ? 'اقفل التعديل' : 'اسمح بالتعديل'}</button></div>`
+    )
+    .join('')}</div>`;
 }
 async function loadProfiles() {
   try {

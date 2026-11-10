@@ -156,8 +156,140 @@ function pendCard(c) {
   return `<div class="card pend"><h3>حوالات بالانتظار ${pill('warn', L.length)}</h3>${L.map(x => {
     const d = diffDays(x.date || todayISO());
     const rc = (x.files || [])[0];
-    return `<div class="wtx wait"><span class="ic">⏳</span><div class="t"><b>${x.paid ? 'دفعت ' + paidTxt(x) : 'حوالة بالانتظار'}${rc ? ` <button type="button" class="rcbtn" data-act="view-rc" data-id="${rc.id}" aria-label="صورة الوصل">🧾</button>` : ''}</b><small>${fmtD(x.date)} · ${d < 0 ? 'صارلها ' + plural(-d) : 'اليوم'}${x.amt ? ' · متوقع ' + money(x.amt, x.cur) : ''}${x.note ? ' · ' + esc(x.note) : ''}</small></div><div class="r"><button type="button" class="btn sm" data-act="w-confirm" data-id="${x.id}">وصلت ✓</button>${ADMIN ? `<button class="icon" style="width:30px;height:30px" data-act="del-ask" data-col="ctx" data-id="${x.id}" aria-label="حذف">${ico('trash', 14)}</button>` : ''}</div></div>`;
+    return `<div class="wtx wait"><span class="ic">⏳</span><div class="t"><b>${x.paid ? 'دفعت ' + paidTxt(x) : 'حوالة بالانتظار'}${rc ? ` <button type="button" class="rcbtn" data-act="view-rc" data-id="${rc.id}" aria-label="صورة الوصل">🧾</button>` : ''}</b><small>${fmtD(x.date)} · ${d < 0 ? 'صارلها ' + plural(-d) : 'اليوم'}${x.amt ? ' · متوقع ' + money(x.amt, x.cur) : ''}${x.note ? ' · ' + esc(x.note) : ''}</small></div><div class="r"><button type="button" class="btn sm" data-act="w-confirm" data-id="${x.id}">وصلت ✓</button>${moneyEdit() ? `<button class="icon" style="width:30px;height:30px" data-act="edit-ctx" data-id="${x.id}" aria-label="تعديل">${ico('edit', 14)}</button>` : ''}${ADMIN ? `<button class="icon" style="width:30px;height:30px" data-act="del-ask" data-col="ctx" data-id="${x.id}" aria-label="حذف">${ico('trash', 14)}</button>` : ''}</div></div>`;
   }).join('')}</div>`;
+}
+/* who may edit money entries: admin always; the assistant only if the admin turned it on for that account */
+const moneyEdit = () => {
+  if (ADMIN) return true;
+  if (!CANEDIT) return false;
+  const co = S.companies.find(c => c.id === ACTIVE);
+  return !!(co && co.staffMoneyEdit);
+};
+/* edit a transfer ("أرسلت فلوس", also while pending) or a fee ("شحن ونقل"); the old version stays in the history */
+function ctxEditForm(id) {
+  const x = byId('ctx', id);
+  if (!x) return;
+  if (!moneyEdit()) {
+    toast('التعديل مو مسموح. المدير يكدر يفعّله من صفحة المستخدمين', 'bad');
+    return;
+  }
+  const isIn = x.type === 'in',
+    wait = isIn && x.status === 'wait';
+  WS = {
+    kind: isIn ? 'in' : 'fee-edit',
+    car: x.carrierId,
+    pc: x.payCur || 'IQD',
+    cur: x.cur || 'CNY',
+    ft: x.ft || 'شحن',
+    ist: wait ? 'wait' : 'ok',
+    rc: null
+  };
+  const seg = (name, opts, v) =>
+    `<div class="chips" role="group">${opts.map(o => `<button type="button" class="chip" data-act="w-seg" data-k="${name}" data-v="${o[0]}" aria-pressed="${o[0] === v}">${o[1]}</button>`).join('')}</div>`;
+  const rc = (x.files || [])[0];
+  let body = wCarPick(false);
+  if (isIn)
+    body += `${wait ? '<div class="hint">حوالة بالانتظار. لمن توصل اضغط «وصلت ✓» بالكشف.</div>' : ''}${fld('كم دفعت بالعراق؟ (اختياري)', inp('wPaid', x.paid || '', 'number'))}${seg(
+      'pc',
+      [
+        ['IQD', 'دينار'],
+        ['USD', 'دولار']
+      ],
+      WS.pc
+    )}<label class="fld" id="wAmtF"><span id="wAmtL">كم سجلوا لك بالرمبي (¥)؟</span>${inp('wAmt', x.amt || '', 'number')}</label>${fld('التاريخ', inp('wDate', x.date || todayISO(), 'date'))}<div class="fld"><span>صورة الوصل</span><div class="rcrow">${rc ? `<button type="button" class="rcbtn" data-act="view-rc" data-id="${rc.id}" aria-label="صورة الوصل">🧾</button>` : ''}<label class="btn ghost sm filebtn">${ico('up', 15)} ${rc ? 'بدّل الصورة' : 'صورة الوصل'}<input type="file" id="wRcpt" accept="image/*,.pdf" class="vh"></label><span id="wRcptPrev"></span></div></div>${fld('ملاحظة', inp('wNote', x.note || ''))}<p class="hint" id="wHint"></p>`;
+  else
+    body += `<div class="fld"><span>النوع</span>${seg(
+      'ft',
+      [
+        ['شحن', 'أجور شحن'],
+        ['نقل', 'نقل من المصنع'],
+        ['أخرى', 'أخرى']
+      ],
+      WS.ft
+    )}</div>${x.orderId ? `<div class="hint">الطلب: ${esc(orderLabel(byId('orders', x.orderId)))}</div>` : ''}${fld('المبلغ (' + (CUR[WS.cur] || WS.cur) + ')', inp('wAmt', x.amt || '', 'number'))}${fld('التاريخ', inp('wDate', x.date || todayISO(), 'date'))}${fld('ملاحظة', inp('wNote', x.note || ''))}`;
+  openModal(isIn ? (wait ? 'تعديل حوالة بالانتظار' : 'تعديل: أرسلت فلوس') : 'تعديل: شحن ونقل', body, {
+    del: ADMIN ? ['ctx', x.id] : null,
+    onOpen: f => {
+      wHint();
+      const r = $('#wRcpt');
+      if (r)
+        r.addEventListener('change', async ev => {
+          const fl = ev.target.files[0];
+          ev.target.value = '';
+          if (!fl) return;
+          try {
+            WS.rc = await prepFile(fl);
+            $('#wRcptPrev').innerHTML =
+              (WS.rc.thumb ? `<img class="rcth" src="${WS.rc.thumb}" alt="">` : '') + `<small>${esc(WS.rc.name)}</small>`;
+          } catch (e) {
+            toast('الملف كبير أو غير مدعوم', 'bad');
+          }
+        });
+      f.addEventListener('input', wHint);
+    },
+    onSubmit: async f => {
+      const amt = r2(num2(f.elements.wAmt.value)),
+        date = val(f, 'wDate') || todayISO();
+      if (!WS.car || !byId('carriers', WS.car)) {
+        ferr('اختر شركة الشحن');
+        return;
+      }
+      if (date > todayISO()) {
+        ferr('التاريخ لا يمكن أن يكون في المستقبل', 'wDate');
+        return;
+      }
+      if (!(amt > 0) && !wait) {
+        ferr('اكتب المبلغ', 'wAmt');
+        return;
+      }
+      const n = Object.assign({}, x, {
+        carrierId: WS.car,
+        amt: amt > 0 ? amt : 0,
+        date,
+        note: val(f, 'wNote'),
+        editedAt: Date.now(),
+        editedBy: myId || ''
+      });
+      if (isIn) {
+        const paid = r2(num2(f.elements.wPaid.value));
+        if (wait && !(paid > 0) && !(amt > 0)) {
+          ferr('اكتب كم دفعت أو كم سجلوا لك', 'wPaid');
+          return;
+        }
+        n.paid = paid > 0 ? paid : 0;
+        n.payCur = WS.pc;
+        if (wait) n.sentDate = date;
+        if (WS.rc) {
+          try {
+            const fid = newId('files');
+            await writeFileDoc(fid, {
+              orderId: '',
+              ctxId: x.id,
+              companyId: x.companyId || ACTIVE,
+              name: WS.rc.name,
+              type: WS.rc.type,
+              size: WS.rc.size,
+              data: WS.rc.data
+            });
+            n.files = [{ id: fid, name: WS.rc.name, type: WS.rc.type, size: WS.rc.size, thumb: WS.rc.thumb || '' }, ...(x.files || [])];
+          } catch (e) {
+            ferr('تعذر حفظ صورة الوصل');
+            return;
+          }
+        }
+      } else {
+        if (WS.ft === 'شحن' && x.ft !== 'شحن' && x.orderId && shipFeeDup(WS.car, x.orderId)) {
+          ferr('أجور شحن هذا الطلب مسجلة بصفحة الشحنات وتنخصم تلقائياً. لا تسجلها مرة ثانية.');
+          return;
+        }
+        n.ft = WS.ft;
+      }
+      await put('ctx', n);
+      closeModal();
+      toast('تم حفظ التعديل');
+    }
+  });
 }
 function confirmForm(id) {
   const x = byId('ctx', id);
@@ -250,7 +382,7 @@ function stmtModal() {
   const all = walletRows(c.id).slice().reverse();
   openModal(
     'كشف حساب ' + c.name,
-    `<div>${all.map(r => `<div class="wtx ${r.k}"><span class="ic">${wico(r.k)}</span><div class="t"><b>${esc(r.t)}${r.rc ? ` <button type="button" class="rcbtn" data-act="view-rc" data-id="${r.rc.id}" aria-label="صورة الوصل">🧾</button>` : ''}</b><small>${r.d ? fmtD(r.d) : '—'}${r.sub ? ' · ' + esc(r.sub) : ''}</small></div><div class="r"><b>${r.amt >= 0 ? '+' : '−'}${money(Math.abs(r.amt), r.cur)}</b>${stmtBal(r.bal, r.cur)}${ADMIN && r.id ? `<button class="icon" style="width:30px;height:30px" data-act="del-ask" data-col="ctx" data-id="${r.id}" aria-label="حذف">${ico('trash', 14)}</button>` : ''}</div></div>`).join('') || '<p style="color:var(--mute)">لا توجد حركات</p>'}</div>`,
+    `<div>${all.map(r => `<div class="wtx ${r.k}"><span class="ic">${wico(r.k)}</span><div class="t"><b>${esc(r.t)}${r.rc ? ` <button type="button" class="rcbtn" data-act="view-rc" data-id="${r.rc.id}" aria-label="صورة الوصل">🧾</button>` : ''}</b><small>${r.d ? fmtD(r.d) : '—'}${r.sub ? ' · ' + esc(r.sub) : ''}</small></div><div class="r"><b>${r.amt >= 0 ? '+' : '−'}${money(Math.abs(r.amt), r.cur)}</b>${stmtBal(r.bal, r.cur)}${moneyEdit() && (r.id || r.pid) ? `<button class="icon" style="width:30px;height:30px" data-act="${r.id ? 'edit-ctx' : 'edit-payment'}" data-id="${r.id || r.pid}" aria-label="تعديل">${ico('edit', 14)}</button>` : ''}${ADMIN && r.id ? `<button class="icon" style="width:30px;height:30px" data-act="del-ask" data-col="ctx" data-id="${r.id}" aria-label="حذف">${ico('trash', 14)}</button>` : ''}</div></div>`).join('') || '<p style="color:var(--mute)">لا توجد حركات</p>'}</div>`,
     { wide: true }
   );
 }
@@ -309,7 +441,7 @@ function carriersView(home) {
      <div class="zrow"><div><small>أرسلت</small><b style="color:var(--z-g,#86d49f)">${sumK('in')}</b></div><div><small>دفعوا للمصانع</small><b style="color:var(--z-r,#ff8f7d)">${sumK('out')}</b></div><div><small>شحن ونقل</small><b style="color:var(--z-y,#f2c060)">${sumK('fee')}</b></div></div></section>
     ${WACTS()}
    </div>
-   <div class="${home ? 'd-stmt' : ''}" style="display:flex;flex-direction:column;gap:14px;min-width:0">${pendCard(c)}<div class="card"><h3>كشف الحساب${home && all.length > shown.length ? ` <button class="btn ghost sm" data-act="w-stmt">الكل (${all.length})</button>` : ''}</h3>${shown.length ? shown.map(r => `<div class="wtx ${r.k}"><span class="ic">${wico(r.k)}</span><div class="t"><b>${esc(r.t)}${r.rc ? ` <button type="button" class="rcbtn" data-act="view-rc" data-id="${r.rc.id}" aria-label="صورة الوصل">🧾</button>` : ''}</b><small>${r.d ? fmtD(r.d) : '—'}${r.sub ? ' · ' + esc(r.sub) : ''}</small></div><div class="r"><b>${r.amt >= 0 ? '+' : '−'}${money(Math.abs(r.amt), r.cur)}</b>${stmtBal(r.bal, r.cur)}${ADMIN && r.id ? `<button class="icon" style="width:30px;height:30px" data-act="del-ask" data-col="ctx" data-id="${r.id}" aria-label="حذف">${ico('trash', 14)}</button>` : ''}</div></div>`).join('') : '<p style="color:var(--mute);margin:0">لا توجد حركات بعد. ابدأ بـ "أرسلت فلوس".</p>'}</div></div>
+   <div class="${home ? 'd-stmt' : ''}" style="display:flex;flex-direction:column;gap:14px;min-width:0">${pendCard(c)}<div class="card"><h3>كشف الحساب${home && all.length > shown.length ? ` <button class="btn ghost sm" data-act="w-stmt">الكل (${all.length})</button>` : ''}</h3>${shown.length ? shown.map(r => `<div class="wtx ${r.k}"><span class="ic">${wico(r.k)}</span><div class="t"><b>${esc(r.t)}${r.rc ? ` <button type="button" class="rcbtn" data-act="view-rc" data-id="${r.rc.id}" aria-label="صورة الوصل">🧾</button>` : ''}</b><small>${r.d ? fmtD(r.d) : '—'}${r.sub ? ' · ' + esc(r.sub) : ''}</small></div><div class="r"><b>${r.amt >= 0 ? '+' : '−'}${money(Math.abs(r.amt), r.cur)}</b>${stmtBal(r.bal, r.cur)}${moneyEdit() && (r.id || r.pid) ? `<button class="icon" style="width:30px;height:30px" data-act="${r.id ? 'edit-ctx' : 'edit-payment'}" data-id="${r.id || r.pid}" aria-label="تعديل">${ico('edit', 14)}</button>` : ''}${ADMIN && r.id ? `<button class="icon" style="width:30px;height:30px" data-act="del-ask" data-col="ctx" data-id="${r.id}" aria-label="حذف">${ico('trash', 14)}</button>` : ''}</div></div>`).join('') : '<p style="color:var(--mute);margin:0">لا توجد حركات بعد. ابدأ بـ "أرسلت فلوس".</p>'}</div></div>
   </div>`;
 }
 function wCarPick(direct) {

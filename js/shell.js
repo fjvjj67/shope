@@ -268,6 +268,19 @@ document.addEventListener('click', e => {
     return;
   }
   switch (d.act) {
+    case 'edit-ctx':
+      ctxEditForm(id);
+      break;
+    case 'money-edit-sw': {
+      if (!ADMIN) break;
+      const co = S.companies.find(c => c.id === d.co);
+      if (!co) break;
+      const on = !co.staffMoneyEdit,
+        n = Object.assign({}, co, { staffMoneyEdit: on });
+      delete n.virtual;
+      put('companies', n).then(() => toast(on ? 'صار مساعدك يكدر يعدّل الحسابات' : 'انقفل التعديل على مساعدك'));
+      break;
+    }
     case 'ctn-add':
       ctnForm(d.order);
       break;
