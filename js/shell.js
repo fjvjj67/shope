@@ -110,6 +110,16 @@ function shell() {
   const a = ADD[cur];
   $('#topact').innerHTML = a ? `<button class="btn" data-act="${a[1]}">${ico('plus')} ${a[0]}</button>` : '';
 }
+/* Slow / blocked connection notice (shown if the data has not loaded after SLOW_NET_MS) */
+const SLOW_NET_MS = 10000;
+let slowNet = false,
+  slowT = null;
+const slowNetMsg = () =>
+  empty(
+    'ما اكدر أوصل للسيرفر',
+    'تأكد من الإنترنت. إذا كنت بالصين شغّل VPN ثم اضغط إعادة المحاولة.',
+    '<button class="btn" data-act="reload" style="margin-top:14px">إعادة المحاولة</button>'
+  );
 function render() {
   shell();
   const v = $('#view');
@@ -121,9 +131,21 @@ function render() {
     return;
   }
   if (LOADS.some(c => !loaded[c])) {
-    v.innerHTML = '<div class="skel"></div><div class="skel"></div>';
+    v.innerHTML = slowNet ? slowNetMsg() : '<div class="skel"></div><div class="skel"></div>';
+    // data never arrives (e.g. Supabase blocked in China without VPN) -> say so instead of grey cards forever
+    if (!slowNet && !slowT)
+      slowT = setTimeout(() => {
+        slowT = null;
+        if (LOADS.some(c => !loaded[c])) {
+          slowNet = true;
+          render();
+        }
+      }, SLOW_NET_MS);
     return;
   }
+  slowNet = false;
+  clearTimeout(slowT);
+  slowT = null;
   if (cur === 'home') v.innerHTML = dashboard();
   else if (LISTS[cur]) {
     const opts = {
@@ -246,6 +268,9 @@ document.addEventListener('click', e => {
     return;
   }
   switch (d.act) {
+    case 'reload':
+      location.reload();
+      break;
     case 'nav':
       if (d.view === 'logout') {
         logout();

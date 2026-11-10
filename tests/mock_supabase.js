@@ -17,7 +17,7 @@ function q(table){
     select(){f.sel=true;return api}, eq(k,v){f.eq.push([k,v]);return api}, limit(n){f.lim=n;return api}, order(){return api}, range(a,b){f.rg=[a,b];return api},
     upsert(r){f.op='upsert';f.row=r;return api}, delete(o){f.op='delete';f.cnt=o&&o.count;return api}, update(u){f.op='update';f.upd=u;return api},
     maybeSingle(){f.single=true;return api},
-    then(res,rej){return Promise.resolve(run()).then(res,rej)}
+    then(res,rej){if(localStorage.getItem('mockhang')==='1'&&table==='docs'&&f.sel)return new Promise(()=>{});return Promise.resolve(run()).then(res,rej)} // mockhang: docs reads never answer (blocked network)
   };
   function match(r){return f.eq.every(([k,v])=>r[k]===v)}
   function run(){
