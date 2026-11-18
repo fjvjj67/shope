@@ -149,7 +149,8 @@ function render() {
   else if (LISTS[cur]) {
     const opts = {
       orders: [
-        ['', 'كل الطلبات'],
+        ['', 'الطلبات الحالية'],
+        ['all', 'كل الطلبات'],
         ['open', 'المفتوحة'],
         ['late', 'المتأخرة'],
         ['recv', 'استلام قريب أو متأخر'],
@@ -173,7 +174,8 @@ function render() {
         ['arrived', 'وصلت']
       ]
     }[cur];
-    v.innerHTML = toolbar(cur, opts);
+    v.innerHTML = cur === 'shipments' ? shipmentsPage(toolbar(cur, opts)) : toolbar(cur, opts);
+    if (!$('#list')) return; // shipments page with no hand-registered shipments
     $('#list').innerHTML = LISTS[cur]();
     $('#q_' + cur).addEventListener('input', e => {
       FL[cur].q = e.target.value;
@@ -211,7 +213,8 @@ function refresh() {
     return;
   }
   const l = $('#list');
-  if (l && LISTS[cur] && $('#view .skel') == null) {
+  if (cur === 'shipments') render(); // shipped-order cards sit above the list
+  else if (l && LISTS[cur] && $('#view .skel') == null) {
     l.innerHTML = LISTS[cur]();
   } else render();
   if (M.refresh) M.refresh();
@@ -219,6 +222,8 @@ function refresh() {
 
 /* ---------- actions ---------- */
 const ADMIN_ACTS = new Set([
+  'ord-arrived',
+  'stage-back',
   'w-confirm',
   'nf-toggle',
   'ship-next',
@@ -359,12 +364,22 @@ document.addEventListener('click', e => {
       const o = byId('orders', id);
       if (o && NEXT[o.stage]) {
         const nx = NEXT[o.stage][0];
-        put('orders', Object.assign({}, o, { stage: nx }))
+        put('orders', Object.assign({}, o, { stage: nx }, stageStamp(o, nx)))
           .then(() => toast('تم نقل الطلب إلى: ' + stageName(nx)))
           .catch(() => {});
       }
       break;
     }
+    case 'shp-tab':
+      SHP_TAB.v = d.v;
+      render();
+      break;
+    case 'ord-arrived':
+      orderArrived(id);
+      break;
+    case 'stage-back':
+      orderStageBack(id);
+      break;
     case 'pay-now':
       settleForm(id);
       break;
