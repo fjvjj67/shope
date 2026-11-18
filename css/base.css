@@ -673,6 +673,11 @@ tr.click:hover td {
 .kv b {
   font-variant-numeric: tabular-nums;
 }
+.kv small.kvs {
+  margin-top: 4px;
+  font-size: 0.78em;
+  font-variant-numeric: tabular-nums;
+}
 .plan {
   display: flex;
   flex-direction: column;

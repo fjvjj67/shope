@@ -1,4 +1,15 @@
 /* Pages: order detail, dashboard, lists */
+/* "المدفوع" on an order = what really left your account: paid to the factory + transport/shipping/other fees of this order */
+function paidBox(o, i) {
+  const cur = o.currency || 'CNY',
+    fees = S.ctx.filter(x => x.type === 'fee' && x.orderId === o.id && +x.amt > 0 && (x.cur || 'CNY') === cur),
+    feeSum = r2(fees.reduce((a, x) => a + (+x.amt || 0), 0));
+  if (!feeSum) return `<div><small>المدفوع</small><b>${money(i.paid, cur)}</b></div>`;
+  const byFt = {};
+  fees.forEach(x => (byFt[x.ft || 'شحن'] = r2((byFt[x.ft || 'شحن'] || 0) + (+x.amt || 0))));
+  const parts = Object.keys(byFt).map(k => ({ نقل: 'نقل', شحن: 'شحن', أخرى: 'أخرى' })[k] + ' ' + num(byFt[k]));
+  return `<div><small>المدفوع</small><b>${money(r2(i.paid + feeSum), cur)}</b><small class="kvs">للمصنع ${num(i.paid)} + ${parts.join(' + ')}</small></div>`;
+}
 const NEXT = {
   production: ['ready', 'تحديد كجاهز للشحن'],
   ready: ['shipped', 'تحديد كمشحون'],
@@ -37,7 +48,7 @@ function openOrder(id) {
       )
       .join('');
     return `<div class="bar">${pill(STAGE_K[o.stage], stageName(o.stage))}${i.timing ? pill(i.timing.k, 'التجهيز: ' + i.timing.t) : ''}${i.recv ? pill(i.recv.k, 'الاستلام: ' + i.recv.t) : ''}${pill(i.pay[0], 'الدفع: ' + i.pay[1])}<span style="color:var(--mute)">${esc(factoryName(o.factoryId))} · ${fmtD(o.orderDate)}</span></div>
-    <div class="kv"><div><small>الإجمالي</small><b>${money(i.total, o.currency)}</b></div><div><small>المدفوع</small><b>${money(i.paid, o.currency)}</b></div><div><small>المتبقي للمصنع</small><b>${money(i.remaining, o.currency)}</b></div><div><small>مجدول غير مدفوع</small><b>${money(i.scheduled, o.currency)}</b></div><div><small>موعد التجهيز</small><b>${fmtD(o.prepDate)}</b></div>${o.recvDate ? `<div><small>موعد الاستلام</small><b>${fmtD(o.recvDate)}</b></div>` : ''}</div>
+    <div class="kv"><div><small>الإجمالي</small><b>${money(i.total, o.currency)}</b></div>${paidBox(o, i)}<div><small>المتبقي للمصنع</small><b>${money(i.remaining, o.currency)}</b></div><div><small>مجدول غير مدفوع</small><b>${money(i.scheduled, o.currency)}</b></div><div><small>موعد التجهيز</small><b>${fmtD(o.prepDate)}</b></div>${o.recvDate ? `<div><small>موعد الاستلام</small><b>${fmtD(o.recvDate)}</b></div>` : ''}</div>
     <div><div class="prog" role="img" aria-label="نسبة المدفوع ${Math.round(pp)} بالمئة"><i class="p1" style="width:${pp}%"></i><i class="p2" style="width:${ps}%"></i></div><div class="legend" style="margin-top:6px"><span><b style="background:var(--ok)"></b>مدفوع <bdi>${Math.round(pp)}%</bdi></span><span><b style="background:var(--warn)"></b>مجدول <bdi>${Math.round(ps)}%</bdi></span><span><b style="background:var(--glass-2)"></b>غير مجدول</span></div></div>
     ${items ? `<div class="scroll"><table class="tbl"><thead><tr><th>المنتج</th><th class="n">الكمية</th><th class="n">السعر</th><th class="n">الإجمالي</th></tr></thead><tbody>${items}</tbody></table></div>` : ''}
     <div><h3 style="margin-bottom:6px">الدفعات <span class="acts"><button class="btn ghost sm" data-act="sched-pay" data-order="${id}">${ico('clock', 14)} موعد دفعة</button><button class="btn sm" data-act="pay-order" data-order="${id}">${ico('plus', 14)} دفع الآن</button></span></h3><ul class="list">${pays || '<li style="color:var(--mute)">لا توجد دفعات مسجّلة</li>'}</ul></div>
