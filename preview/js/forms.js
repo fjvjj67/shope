@@ -2,6 +2,7 @@
 const M = { el: null, refresh: null, back: null };
 let lastFocus = null;
 function closeModal(skipBack) {
+  if (typeof closeFactorySheet === 'function') closeFactorySheet();
   if (M.el) {
     M.el.remove();
     M.el = null;
@@ -50,6 +51,7 @@ function openModal(title, body, o) {
     }
   });
   if (o.onOpen) o.onOpen(f);
+  if (typeof enhanceForm === 'function') enhanceForm(f); // js/pickers.js
   const first = f.querySelector('input:not([type=hidden]),select,textarea');
   if (first && o.onSubmit && !('ontouchstart' in window)) first.focus();
 }

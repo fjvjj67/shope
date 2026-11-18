@@ -1,6 +1,8 @@
 /* Large text layer (loaded last): bigger numbers and labels on every page + the order page header.
    To make everything smaller/bigger again, edit the sizes here only. */
 
+[hidden] { display: none !important; } /* anything marked hidden stays hidden (fixes the "الزيادة" box showing in دفعوا لمصنع before an order is picked) */
+
 /* ---------- order page header (js/views.js → orderHead) ---------- */
 .oh { display: flex; flex-direction: column; gap: 12px; margin: 6px 0 4px; }
 .oh-hero {
@@ -95,3 +97,67 @@ html[data-ui='light'] .oh-p { background: #e8eaee; }
 .acct-stats small { font-size: 14px; }
 .acct-stats b { font-size: 22px; line-height: 1.3; }
 .acct-stats > div:nth-child(2) b { font-size: 28px; }
+
+/* ---------- form controls (js/pickers.js) ---------- */
+.sel-hidden { position: absolute !important; width: 1px !important; height: 1px !important; opacity: 0 !important; pointer-events: none; }
+.frow { position: relative; }
+.fpick {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 0 14px;
+  border: 1.5px solid var(--line); border-radius: 14px; background: var(--glass); color: var(--fg);
+  font: inherit; font-size: 18px; font-weight: 700; cursor: pointer; text-align: start;
+}
+.fpick:focus-visible, .fpick:hover { border-color: var(--accent); }
+.fpick:disabled { opacity: 0.45; cursor: default; }
+.fpick .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fpick .nm.ph { color: var(--mute); font-weight: 500; }
+.fpick .cv { color: var(--mute); font-size: 20px; line-height: 1; }
+.av {
+  --av: var(--accent); flex: none; width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center;
+  font-style: normal; font-weight: 800; font-size: 17px; color: var(--av);
+  background: color-mix(in srgb, var(--av) 18%, transparent);
+}
+.fs-ovl { position: fixed; inset: 0; z-index: 90; background: rgba(0, 0, 0, 0.5); display: flex; align-items: flex-end; justify-content: center; }
+.fs {
+  width: min(560px, 100%); max-height: 82vh; display: flex; flex-direction: column; gap: 10px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 24px 24px 0 0; padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
+  box-shadow: 0 -20px 40px -20px rgba(0, 0, 0, 0.6); animation: fsUp 0.22s ease-out;
+}
+@media (min-width: 761px) { .fs-ovl { align-items: center; } .fs { border-radius: 24px; } }
+@keyframes fsUp { from { transform: translateY(30px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .fs { animation: none; } }
+.fs-h { display: flex; align-items: center; justify-content: space-between; font-size: 20px; padding: 2px 4px; }
+.fs-q { min-height: 52px; font-size: 17px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--glass); color: var(--fg); padding: 0 14px; }
+.fs-q:focus { border-color: var(--accent); outline: none; }
+.fs-list { overflow-y: auto; display: flex; flex-direction: column; gap: 2px; overscroll-behavior: contain; }
+.fs-sec { font-size: 14px; color: var(--mute); padding: 10px 6px 4px; font-weight: 700; }
+.fs-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 8px; border: 0; border-radius: 14px; background: none; color: var(--fg); font: inherit; text-align: start; cursor: pointer; }
+.fs-row:hover, .fs-row:focus-visible { background: var(--glass-2); }
+.fs-row.on { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.fs-row .t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.fs-row b { font-size: 18px; }
+.fs-row small { font-size: 14px; color: var(--mute); }
+.fs-row .ck { color: var(--accent); font-weight: 800; font-size: 20px; }
+.fs-new .av { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); font-size: 22px; }
+.fs-new b { color: var(--accent); }
+.fs-none { text-align: center; color: var(--mute); padding: 18px; }
+/* dates */
+.dwrap { position: relative; display: block; width: 100%; min-width: 0; }
+.dwrap > input[type='date'] { position: absolute; inset: 0; width: 100%; height: 100%; min-width: 0; opacity: 0; cursor: pointer; -webkit-appearance: none; appearance: none; }
+.dshow {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 52px; padding: 0 14px;
+  border: 1.5px solid var(--line); border-radius: 14px; background: var(--glass); font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.dshow small { font-size: 14px; color: var(--mute); font-weight: 500; }
+.dshow .ph { color: var(--mute); font-weight: 500; }
+.dwrap:focus-within .dshow { border-color: var(--accent); }
+.dq { margin-top: 8px; }
+.durrow .dwrap { flex: 1; }
+/* money field with currency sign */
+.cin { display: flex; align-items: center; direction: ltr; border: 1.5px solid var(--line); border-radius: 14px; background: var(--glass); overflow: hidden; }
+.cin:focus-within { border-color: var(--accent); }
+.cin .cs { padding-inline-start: 14px; color: var(--mute); font-weight: 800; font-size: 18px; }
+.fld .cin input { border: 0; background: none; border-radius: 0; font-size: 20px; font-weight: 800; min-height: 52px; direction: ltr; text-align: left; }
+/* batch number */
+.fld .bno input { font-size: 22px; min-height: 52px; }
+.bno .pre { font-size: 17px; }
+.bnoh { font-size: 14px; }
