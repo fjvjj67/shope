@@ -11,6 +11,7 @@ css/
   base.css              layout, components, phone layout (bottom tabs, bottom sheets)
   z-style.css           the "Z" look: warm hero cards, dashboard grid, motion
   light.css             clean-white theme (html[data-ui="light"])
+  large.css             large text on every page + order page header + form controls (loaded last; sizes live here)
 js/                     classic scripts sharing globals — ORDER MATTERS (see index.html)
   config.js             Supabase URL + public anon key
   core.js               helpers: $, esc, money, num, num2 (reads any digits), dates, icons, toast
@@ -20,6 +21,7 @@ js/                     classic scripts sharing globals — ORDER MATTERS (see i
   accounts.js           accounts (Guangzhou `main` / Yiwu `yiwu`), switching, balances
   logic.js              business rules: order remaining, payment status, timing
   forms.js              modal + forms: order, payment, shipment, factory, carrier
+  pickers.js            form controls added after a form opens: factory search sheet, dd/mm/yyyy dates, currency sign
   views.js              pages: dashboard, lists, order detail, backup page
   export.js             Excel export, JSON backup/restore, demo data
   shell.js              navigation, render loop, all click/keyboard actions (data-act="…")
@@ -63,6 +65,16 @@ Body classes: `ro` (read-only), `nodel` (no delete buttons), `lockco` (no accoun
 ## Languages (js/i18n.js)
 * Chinese screen: a MutationObserver rewrites Arabic interface text using `ZH_PATTERNS` (whole sentences) then `ZH_DICT` (longest phrase first, whole words only). New text → add it to `i18n-zh-dict.js`.
 * Typed text: runs of the *other* script are sent to `functions/v1/translate`, cached in the browser (`azawi-ct-ar|zh`) and on the server. The database keeps the original.
+
+## Safe-change rules (keep money correct)
+* **Display changes never touch money logic.** Looks live in `css/*.css`, `orderHead()` in views.js and `js/pickers.js`;
+  balances/remaining come only from `logic.js` (`oi`, `ordRem`, `payPlan`) and `wallet.js` (`walletRows`, `walletBal`).
+* **Add, don't rewrite.** New behaviour goes in a new function or file and is called from one place
+  (e.g. `enhanceForm(f)` is called once at the end of `openModal`). The original `<select>`/`<input>` stay in the form,
+  so saving code never changes when the look changes.
+* **No data edits from code changes.** Fixing a wrong number in the database is a separate, approved step,
+  done through the app (or one recorded SQL file) — never as a side effect of a code update.
+* Every change: `tools/stamp.py`, then `tests/run-all.sh` must be all PASS before pushing.
 
 ## Making a change
 1. Edit the file (search for the Arabic text you see on screen, or the `data-act` name of the button).
