@@ -34,7 +34,8 @@ const L=s=>console.log('step',s);const save=p=>p.click('.modal .mf .btn:not(.gho
  ok(await p.evaluate(()=>{const o=S.orders[0];return byId('factories',o.factoryId).name==='جوجي'&&o.total===12500&&o.orderDate===addDays(todayISO(),-1)}),'order saved with picked factory, total and date');
  // new factory from the sheet
  await p.evaluate(()=>{closeModal(true);orderForm()});await p.click('.fpick');await p.click('[data-fs=new]');
- ok(await p.evaluate(()=>!document.getElementById('nfBox').hidden&&document.querySelector('.fpick').disabled),'new factory from sheet opens the name box');
+ ok(await p.evaluate(()=>!document.getElementById('nfBox').hidden&&document.querySelector('.fpick').hidden),'new factory from sheet opens the name box');
+ await p.click('[data-act=nf-toggle]');ok(await p.evaluate(()=>document.getElementById('nfBox').hidden&&!document.querySelector('.fpick').hidden&&document.querySelector('[data-act=nf-toggle]').hidden),'back to the list: picker full width again');
  // payment form: paid date set by code shows in the box
  await p.evaluate(()=>{closeModal(true);paymentForm(null,S.orders[0].id)});await p.waitForSelector('#f_paid',{state:'attached'});await p.click('#f_paid');
  ok(await p.evaluate(()=>{const d=document.getElementById('f_paidDate');return d.value===todayISO()&&d.closest('.dwrap').querySelector('.dshow').textContent.startsWith(fmtD(todayISO()))}),'date set by code updates the display');
