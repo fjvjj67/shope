@@ -30,7 +30,7 @@ const L=s=>console.log('step',s);const save=p=>p.click('.modal .mf .btn:not(.gho
  await p.waitForTimeout(500);await p.evaluate(()=>{closeModal(true);paymentForm(S.payments.find(x=>+x.amount===21920),null)});await p.waitForSelector('#mform',{state:'attached'});
  await p.fill('#f_amount','22330');await save(p);await p.waitForFunction(()=>S.ctx.some(x=>x.type==='fee'));
  await p.waitForTimeout(500);await p.evaluate(()=>{closeModal(true);openOrder(S.orders[0].id)});await p.waitForTimeout(600);
- const kv=await p.textContent('.modal .kv');ok(/23,330/.test(kv)&&/للمصنع 22,920 \+ نقل 410/.test(kv)&&/22,920/.test(kv),'paid box: '+kv);
+ const kv=await p.textContent('.modal .oh');ok(/المدفوع فعلاً¥23,330/.test(kv)&&/للمصنع 22,920/.test(kv)&&/نقل 410/.test(kv)&&/الإجمالي¥22,920/.test(kv)&&/✓ مسدد/.test(kv),'order header: '+kv);
  await p.screenshot({path:(process.env.OUT||OS.tmpdir())+'/order85.png'});
  ok(errs.length===0,'js errors '+errs.join('|'));
  await b.close();console.log('PASS',pass,'FAIL',fail)})().catch(e=>{console.log('ERR',e.message.split('\n')[0]);process.exit(1)});

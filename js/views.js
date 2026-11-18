@@ -1,14 +1,35 @@
 /* Pages: order detail, dashboard, lists */
-/* "المدفوع" on an order = what really left your account: paid to the factory + transport/shipping/other fees of this order */
-function paidBox(o, i) {
+/* Order page header (large):
+   - "المدفوع فعلاً" = what really left your account: paid to the factory + transport/shipping/other fees of this order
+   - total (goods price), remaining to the factory, then small lines (scheduled, dates) */
+const bigMoney = (n, c) => '<bdi dir="ltr"><em>' + (CUR[c] || c || '$') + '</em>' + num(n) + '</bdi>';
+const FT_ICON = { نقل: '🚚', شحن: '🚢', أخرى: '•' };
+function orderFees(o) {
   const cur = o.currency || 'CNY',
     fees = S.ctx.filter(x => x.type === 'fee' && x.orderId === o.id && +x.amt > 0 && (x.cur || 'CNY') === cur),
-    feeSum = r2(fees.reduce((a, x) => a + (+x.amt || 0), 0));
-  if (!feeSum) return `<div><small>المدفوع</small><b>${money(i.paid, cur)}</b></div>`;
-  const byFt = {};
+    byFt = {};
   fees.forEach(x => (byFt[x.ft || 'شحن'] = r2((byFt[x.ft || 'شحن'] || 0) + (+x.amt || 0))));
-  const parts = Object.keys(byFt).map(k => ({ نقل: 'نقل', شحن: 'شحن', أخرى: 'أخرى' })[k] + ' ' + num(byFt[k]));
-  return `<div><small>المدفوع</small><b>${money(r2(i.paid + feeSum), cur)}</b><small class="kvs">للمصنع ${num(i.paid)} + ${parts.join(' + ')}</small></div>`;
+  return { sum: r2(fees.reduce((a, x) => a + (+x.amt || 0), 0)), byFt };
+}
+function orderHead(o, i) {
+  const cur = o.currency || 'CNY',
+    f = orderFees(o),
+    real = r2(i.paid + f.sum);
+  const pp = i.total ? Math.min(100, (i.paid / i.total) * 100) : 0,
+    ps = i.total ? Math.min(100 - pp, (i.scheduled / i.total) * 100) : 0;
+  const chips = f.sum
+    ? `<div class="oh-c"><span class="hc"><i>🏭</i>للمصنع <b>${num(i.paid)}</b></span>${Object.keys(f.byFt)
+        .map(k => `<span class="hc"><i>${FT_ICON[k] || '•'}</i>${k} <b>${num(f.byFt[k])}</b></span>`)
+        .join('')}</div>`
+    : '';
+  const done = i.total > 0 && i.remaining <= 0.005;
+  return `<div class="oh">
+    <div class="oh-hero"><div class="oh-l">المدفوع فعلاً</div><div class="oh-n">${bigMoney(real, cur)}</div>${chips}
+      ${i.total ? `<div class="oh-p" role="img" aria-label="نسبة المدفوع ${Math.round(pp)} بالمئة"><i class="p1" style="width:${pp}%"></i><i class="p2" style="width:${ps}%"></i></div><div class="oh-pl"><span>مدفوع <bdi>${Math.round(pp)}%</bdi>${ps >= 0.5 ? ' · مجدول <bdi>' + Math.round(ps) + '%</bdi>' : ''}</span><span>من ${money(i.total, cur)}</span></div>` : ''}</div>
+    <div class="oh-g"><div><small>الإجمالي</small><b>${bigMoney(i.total, cur)}</b><span>سعر البضاعة</span></div>
+      <div class="${done ? 'ok' : i.remaining > 0.005 ? 'bad' : ''}"><small>المتبقي للمصنع</small><b>${done ? '✓ مسدد' : bigMoney(i.remaining, cur)}</b><span>${done ? 'ما عليك شي' : i.remaining > 0.005 ? 'باقي عليك' : ''}</span></div></div>
+    <div class="oh-r">${i.scheduled > 0.005 ? `<div><span>مجدول غير مدفوع</span><b>${money(i.scheduled, cur)}</b></div>` : ''}<div><span>موعد التجهيز</span><b>${fmtD(o.prepDate)}</b></div>${o.recvDate ? `<div><span>موعد الاستلام</span><b>${fmtD(o.recvDate)}</b></div>` : ''}</div>
+  </div>`;
 }
 const NEXT = {
   production: ['ready', 'تحديد كجاهز للشحن'],
@@ -38,8 +59,6 @@ function openOrder(id) {
       ${p.paid ? '' : `<button class="btn sm" data-act="pay-now" data-id="${p.id}">تسديد</button>`}<button class="icon" data-act="edit-payment" data-id="${p.id}" aria-label="تعديل">${ico('edit', 16)}</button></div></li>`;
       })
       .join('');
-    const pp = i.total ? Math.min(100, (i.paid / i.total) * 100) : 0,
-      ps = i.total ? Math.min(100 - pp, (i.scheduled / i.total) * 100) : 0;
     const ships = S.shipments
       .filter(s => s.orderId === id)
       .map(
@@ -48,8 +67,7 @@ function openOrder(id) {
       )
       .join('');
     return `<div class="bar">${pill(STAGE_K[o.stage], stageName(o.stage))}${i.timing ? pill(i.timing.k, 'التجهيز: ' + i.timing.t) : ''}${i.recv ? pill(i.recv.k, 'الاستلام: ' + i.recv.t) : ''}${pill(i.pay[0], 'الدفع: ' + i.pay[1])}<span style="color:var(--mute)">${esc(factoryName(o.factoryId))} · ${fmtD(o.orderDate)}</span></div>
-    <div class="kv"><div><small>الإجمالي</small><b>${money(i.total, o.currency)}</b></div>${paidBox(o, i)}<div><small>المتبقي للمصنع</small><b>${money(i.remaining, o.currency)}</b></div><div><small>مجدول غير مدفوع</small><b>${money(i.scheduled, o.currency)}</b></div><div><small>موعد التجهيز</small><b>${fmtD(o.prepDate)}</b></div>${o.recvDate ? `<div><small>موعد الاستلام</small><b>${fmtD(o.recvDate)}</b></div>` : ''}</div>
-    <div><div class="prog" role="img" aria-label="نسبة المدفوع ${Math.round(pp)} بالمئة"><i class="p1" style="width:${pp}%"></i><i class="p2" style="width:${ps}%"></i></div><div class="legend" style="margin-top:6px"><span><b style="background:var(--ok)"></b>مدفوع <bdi>${Math.round(pp)}%</bdi></span><span><b style="background:var(--warn)"></b>مجدول <bdi>${Math.round(ps)}%</bdi></span><span><b style="background:var(--glass-2)"></b>غير مجدول</span></div></div>
+    ${orderHead(o, i)}
     ${items ? `<div class="scroll"><table class="tbl"><thead><tr><th>المنتج</th><th class="n">الكمية</th><th class="n">السعر</th><th class="n">الإجمالي</th></tr></thead><tbody>${items}</tbody></table></div>` : ''}
     <div><h3 style="margin-bottom:6px">الدفعات <span class="acts"><button class="btn ghost sm" data-act="sched-pay" data-order="${id}">${ico('clock', 14)} موعد دفعة</button><button class="btn sm" data-act="pay-order" data-order="${id}">${ico('plus', 14)} دفع الآن</button></span></h3><ul class="list">${pays || '<li style="color:var(--mute)">لا توجد دفعات مسجّلة</li>'}</ul></div>
     ${ctnSection(o)}
