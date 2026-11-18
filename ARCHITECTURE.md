@@ -22,6 +22,7 @@ js/                     classic scripts sharing globals — ORDER MATTERS (see i
   logic.js              business rules: order remaining, payment status, timing
   forms.js              modal + forms: order, payment, shipment, factory, carrier
   pickers.js            form controls added after a form opens: factory search sheet, dd/mm/yyyy dates, currency sign
+  shipped.js            shipped orders on the shipments page (بالطريق/وصلت), shippedAt/receivedAt dates, undo a wrong stage
   views.js              pages: dashboard, lists, order detail, backup page
   export.js             Excel export, JSON backup/restore, demo data
   shell.js              navigation, render loop, all click/keyboard actions (data-act="…")
