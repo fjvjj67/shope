@@ -484,10 +484,9 @@ function orderForm(o0, back) {
           return;
         }
       }
-      const currency = val(f, 'currency');
-      await put(
-        'orders',
-        Object.assign({}, e, {
+      const currency = val(f, 'currency'),
+        stg = val(f, 'stage');
+      const rec = Object.assign({}, e, {
           id: oid,
           files: metas,
           createdAt: e.createdAt || Date.now(),
@@ -496,14 +495,17 @@ function orderForm(o0, back) {
           orderDate: od,
           prepDate: pd,
           recvDate: rd,
-          stage: val(f, 'stage'),
+          stage: stg,
           currency,
           items,
           total,
           cartons,
           note: val(f, 'note')
-        })
-      );
+        }, stageStamp(e, stg));
+      // stage moved back in the form → drop the dates that no longer apply (js/shipped.js)
+      if (stg !== 'shipped' && stg !== 'received') delete rec.shippedAt;
+      if (stg !== 'received') delete rec.receivedAt;
+      await put('orders', rec);
       try {
         localStorage.setItem('ts_lastFactory', factoryId);
         localStorage.setItem('ts_lastCur', currency);

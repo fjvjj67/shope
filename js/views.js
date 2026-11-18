@@ -74,7 +74,7 @@ function openOrder(id) {
     <div><h3 style="margin-bottom:6px">الشحنات <button class="btn ghost sm" data-act="new-shipment" data-order="${id}">${ico('plus', 14)} شحنة</button></h3><ul class="list">${ships || '<li style="color:var(--mute)">لا توجد شحنات مرتبطة</li>'}</ul></div>
     ${attSection(o)}
     ${o.note ? `<div class="hint">${esc(o.note)}</div>` : ''}
-    <div class="mf"><button class="btn ghost" type="button" data-act="del-ask" data-col="orders" data-id="${id}">${ico('trash', 16)} حذف</button>${NEXT[o.stage] ? `<button class="btn ghost" type="button" data-act="next-stage" data-id="${id}">${ico('check', 16)} ${NEXT[o.stage][1]}</button>` : ''}<button class="btn" type="button" data-act="edit-order" data-id="${id}">${ico('edit', 16)} تعديل الطلب</button></div>`;
+    <div class="mf"><button class="btn ghost" type="button" data-act="del-ask" data-col="orders" data-id="${id}">${ico('trash', 16)} حذف</button>${NEXT[o.stage] ? `<button class="btn ghost" type="button" data-act="next-stage" data-id="${id}">${ico('check', 16)} ${NEXT[o.stage][1]}</button>` : ''}${STAGE_BACK[o.stage] ? `<button class="btn ghost" type="button" data-act="stage-back" data-id="${id}">↩ رجوع: ${stageName(STAGE_BACK[o.stage])}</button>` : ''}<button class="btn" type="button" data-act="edit-order" data-id="${id}">${ico('edit', 16)} تعديل الطلب</button></div>`;
   };
   const mount = () => {
     const o = byId('orders', id);
@@ -164,6 +164,8 @@ function ordersList() {
   let rows = S.orders
     .map(o => ({ o, i: oi(o) }))
     .filter(r => {
+      // default view = current work; shipped/received live on the shipments page (search still finds them)
+      if (st === '' && !q && (r.o.stage === 'shipped' || r.o.stage === 'received')) return false;
       if (st === 'open' && r.o.stage === 'received') return false;
       if (st === 'late' && !(r.i.timing && r.i.timing.k === 'bad')) return false;
       if (st === 'recv' && !(r.i.recv && r.i.recv.k !== 'ok')) return false;
