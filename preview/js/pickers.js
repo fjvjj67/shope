@@ -65,6 +65,18 @@ function factoryPicker(sel) {
   });
   sel.after(b);
   paint();
+  // "+ مصنع جديد" lives inside the sheet now → the side button only shows while typing a new name (as "من القائمة"),
+  // so the picker gets the full width on small phones
+  const nb = sel.parentElement && sel.parentElement.querySelector('[data-act="nf-toggle"]'),
+    box = document.getElementById('nfBox');
+  if (nb && box) {
+    const sync = () => {
+      nb.hidden = box.hidden;
+      b.hidden = !box.hidden;
+    };
+    new MutationObserver(sync).observe(box, { attributes: true, attributeFilter: ['hidden'] });
+    sync();
+  }
 }
 function openFactorySheet(sel) {
   closeFactorySheet();

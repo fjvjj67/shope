@@ -81,13 +81,19 @@ html[data-ui='light'] .oh-p { background: #e8eaee; }
 .ph-list { padding: 6px 16px; }
 .ph-list .ph-row + .ph-row { border-top: 1px solid var(--line); }
 
-/* shipments */
-.tbl td { font-size: 17px; }
-.tbl td b { font-size: 20px; }
-.tbl td small { font-size: 14px; }
-.tbl .n { font-size: 20px; font-weight: 800; }
-.tbl .pill { font-size: 15px; padding: 5px 12px; }
-.tbl .btn.sm { font-size: 16px; min-height: 46px; }
+/* shipments (phone: tables turn into cards → big text; laptop keeps table sizes so columns fit) */
+@media (max-width: 760px) {
+  .tbl td { font-size: 17px; }
+  .tbl td b { font-size: 20px; }
+  .tbl td small { font-size: 14px; }
+  .tbl .n { font-size: 20px; font-weight: 800; }
+  .tbl .pill { font-size: 15px; padding: 5px 12px; }
+  .tbl .btn.sm { font-size: 16px; min-height: 46px; }
+}
+@media (min-width: 761px) {
+  .tbl td { font-size: 15px; }
+  .tbl td b { font-size: 16px; }
+}
 
 /* accounts */
 .acct-hero h3 { font-size: 24px; }
