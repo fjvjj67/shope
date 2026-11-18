@@ -626,6 +626,10 @@ function paymentForm(p0, orderId, back) {
     return;
   }
   const e = p0 || { orderId: orderId || S.orders[0].id, paid: false, method: 'تحويل بنكي' };
+  // extras (transport/shipping/other) saved with this payment: shown inside the amount, split again on save
+  const ex0 = p0 ? payExtras(p0) : [];
+  const exTot = r2(ex0.reduce((a, x) => a + (+x.amt || 0), 0));
+  const xt0 = (ex0[0] && ex0[0].ft) || 'نقل';
   const body = `${fld(
     'الطلب',
     sel(
@@ -637,7 +641,7 @@ function paymentForm(p0, orderId, back) {
   <div class="plan" id="plan"></div>
   <div class="chips"><small style="color:var(--mute)">مبلغ سريع:</small>${[30, 40, 50].map(x => `<button type="button" class="chip" data-act="pct" data-pct="${x}">${x}% من الإجمالي</button>`).join('')}<button type="button" class="chip" data-act="use-suggest">الباقي كله</button></div>
   <div class="grid2">
-    ${fld('المبلغ', inp('amount', e.amount, 'number', 'required'))}
+    ${fld('المبلغ', inp('amount', p0 ? r2((+e.amount || 0) + exTot) : e.amount, 'number', 'required'))}
     ${fld('وصف الدفعة (اختياري)', inp('label', e.label || '', 'text', 'list="plabels" autocomplete="off" placeholder="عربون، قبل الشحن، الرصيد…"') + '<datalist id="plabels"><option value="عربون"><option value="دفعة قبل الشحن"><option value="الرصيد النهائي"></datalist>')}
     ${fld(
       'تاريخ الاستحقاق',
@@ -670,7 +674,8 @@ function paymentForm(p0, orderId, back) {
     )}
     <label class="fld chk"><input type="checkbox" id="f_paid" name="paid" ${e.paid ? 'checked' : ''}><span>تم تسديد الدفعة</span></label>
     ${fld('تاريخ التسديد', inp('paidDate', e.paidDate || '', 'date'))}
-  </div><div class="hint" id="phint"></div>${fld('ملاحظات', ta('note', e.note))}`;
+  </div><div class="hint" id="phint"></div>
+  <div id="pXtra" hidden>${fld('الزيادة فوق الباقي تنسجل', sel('xt', XT_OPTS, xt0))}</div>${fld('ملاحظات', ta('note', e.note))}`;
   openModal(p0 ? 'تعديل دفعة' : 'دفعة جديدة', body, {
     back,
     del: p0 ? ['payments', p0.id] : null,
@@ -685,6 +690,14 @@ function paymentForm(p0, orderId, back) {
           total = itemsTotal(o);
         const mine = r2(num2(f.elements.amount.value) || 0),
           left = r2(total - recorded - mine);
+        const viaCar = !!f.elements.via.value && f.elements.paid.checked;
+        $('#pXtra').hidden = !(viaCar && total && left < -0.005);
+        if (viaCar && total && left < -0.005) {
+          h.className = 'hint';
+          h.innerHTML =
+            'للمصنع ' + money(r2(mine + left), o.currency) + ' · الزيادة ' + money(-left, o.currency) + ' تنسجل بحساب شركة الشحن';
+          return;
+        }
         h.className = 'hint' + (total && left < -0.005 ? ' bad' : '');
         const key =
           f.elements.dueDate.value ||
@@ -715,6 +728,8 @@ function paymentForm(p0, orderId, back) {
         hint();
       });
       f.elements.orderId.addEventListener('change', sync);
+      f.elements.via.addEventListener('change', hint);
+      f.elements.xt.addEventListener('change', hint);
       f.elements.paid.addEventListener('change', () => {
         if (f.elements.paid.checked && !f.elements.paidDate.value) f.elements.paidDate.value = todayISO();
       });
@@ -745,29 +760,64 @@ function paymentForm(p0, orderId, back) {
       const total = itemsTotal(o),
         plan = payPlan(o, e.id),
         recorded = plan.length ? plan[plan.length - 1].cum : 0;
-      if (total > 0 && r2(recorded + amount) > total + 0.005) {
+      const via = val(f, 'via');
+      let part = amount,
+        extra = 0;
+      if (via && paid && total > 0 && r2(recorded + amount) > total + 0.005) {
+        // paid through a shipping company: the order gets its remaining, the rest is a fee (like a new payment)
+        part = r2(Math.max(total - recorded, 0));
+        extra = r2(amount - part);
+        if (val(f, 'xt') === 'شحن' && shipFeeDup(via, o.id)) {
+          ferr('أجور شحن هذا الطلب مسجلة بصفحة الشحنات وتنخصم تلقائياً. لا تسجلها مرة ثانية.');
+          return;
+        }
+      } else if (total > 0 && r2(recorded + amount) > total + 0.005) {
         ferr(
           'المبلغ يتجاوز الباقي من الطلب. أقصى مبلغ ممكن ' + num(r2(total - recorded)) + ' ' + (CUR[o.currency] || ''),
           'amount'
         );
         return;
       }
+      const pid = e.id || newId('payments'),
+        pday = paid ? pdt || todayISO() : '';
       await put(
         'payments',
         Object.assign({}, e, {
-          id: e.id || newId('payments'),
+          id: pid,
           createdAt: e.createdAt || Date.now(),
           orderId: o.id,
           label: val(f, 'label'),
-          amount,
+          amount: part,
           dueDate: due,
           paid,
-          paidDate: paid ? pdt || todayISO() : '',
+          paidDate: pday,
           method: val(f, 'method'),
-          via: val(f, 'via'),
+          via,
           note: val(f, 'note')
         })
       );
+      // keep the linked extra in step: first one carries the new extra, any others go to zero
+      const xt = val(f, 'xt') || xt0;
+      for (let i = 0; i < ex0.length; i++) {
+        const x = ex0[i],
+          amt = i === 0 ? extra : 0;
+        if (r2(+x.amt || 0) !== amt || x.payId !== pid || (i === 0 && x.ft !== xt) || x.carrierId !== via)
+          await put('ctx', Object.assign({}, x, { amt, payId: pid, ft: i === 0 ? xt : x.ft, carrierId: via || x.carrierId, orderId: o.id, date: pday || x.date }));
+      }
+      if (!ex0.length && extra > 0)
+        await put('ctx', {
+          id: newId('ctx'),
+          type: 'fee',
+          ft: xt,
+          carrierId: via,
+          orderId: o.id,
+          payId: pid,
+          amt: extra,
+          cur: o.currency || 'CNY',
+          date: pday,
+          note: 'ويا دفعة الطلب',
+          at: Date.now()
+        });
       closeModal();
       toast('تم حفظ الدفعة');
     }
@@ -839,7 +889,7 @@ function shipmentForm(s0, orderId, back) {
         cost > 0 &&
         !(+e.cost > 0) &&
         WS.ord &&
-        S.ctx.some(x => x.type === 'fee' && x.ft === 'شحن' && x.carrierId === carrierId && x.orderId === WS.ord)
+        S.ctx.some(x => x.type === 'fee' && +x.amt > 0 && x.ft === 'شحن' && x.carrierId === carrierId && x.orderId === WS.ord)
       ) {
         ferr('أجور شحن هذا الطلب مسجلة من زر «شحن ونقل». اترك أجور الشحن فارغة هنا حتى ما تنحسب مرتين.', 'cost');
         return;

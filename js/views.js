@@ -81,7 +81,7 @@ function payDetail(pid) {
         `<div><span>${x.ft === 'نقل' ? '🚚 نقل من المصنع' : x.ft === 'أخرى' ? 'مصاريف أخرى' : 'أجور شحن'}${x.note && x.note !== 'ويا دفعة الطلب' ? `<br><small>${esc(x.note)}</small>` : ''}</span><b>${money(x.amt, x.cur)}</b></div>`
     )
     .join('');
-  const allFees = o ? S.ctx.filter(x => x.type === 'fee' && x.orderId === o.id) : [];
+  const allFees = o ? S.ctx.filter(x => x.type === 'fee' && +x.amt > 0 && x.orderId === o.id) : [];
   const feeSum = r2(allFees.filter(x => (x.cur || 'CNY') === cur).reduce((a, x) => a + (+x.amt || 0), 0));
   const btns = [
     `<button class="btn ghost sm" type="button" data-act="edit-payment" data-id="${p.id}">${ico('edit', 14)} تعديل الدفعة</button>`,

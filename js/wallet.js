@@ -49,7 +49,7 @@ function walletRows(cid) {
             : '',
           rc: (x.files || [])[0] || null
         });
-      } else
+      } else if (Math.abs(+x.amt || 0) > 0.001)
         rows.push({
           k: 'fee',
           id: x.id,
